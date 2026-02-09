@@ -5,3 +5,4 @@ pub mod config;
 pub mod protocols;
 pub mod session;
 pub mod fs;
+pub mod socket;  
