@@ -200,8 +200,6 @@ pub async fn set_permissions(path: impl AsRef<Path>, mode: u32) -> Result<(), Fs
 
 #[cfg(test)]
 mod tests {
-    use std::{fs::exists, result};
-
     use super::*;
     use tempfile::tempdir;
 
