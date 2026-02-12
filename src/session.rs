@@ -3,18 +3,18 @@
 use std::time::{Duration, Instant};
 
 /// A session that is not currently blocking
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IdleSession;
 
 /// A session that is actively blocking
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ActiveSession {
     started_at: Instant,
     duration: Duration,
 }
 
 /// Wrapper enum for holding either session state
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Session {
     Idle(IdleSession),
     Active(ActiveSession),
@@ -35,6 +35,14 @@ impl IdleSession {
 }
 
 impl ActiveSession {
+    #[cfg(test)]
+    pub fn new_for_test(duration: Duration) -> Self {
+        Self {
+            started_at: Instant::now(),
+            duration,
+        }
+    }
+
     /// Stop blocking — consumes self, returns IdleSession
     pub fn stop(self) -> IdleSession {
         IdleSession

@@ -1,11 +1,13 @@
 // src/protocol.rs
 
 use serde::{Serialize, Deserialize, de::DeserializeOwned};
+use thiserror::Error;
 
-
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Error)]
 pub enum ProtocolError {
+    #[error("Encode error: {0}")]
     EncodeError(String),
+    #[error("Decode error: {0}")]
     DecodeError(String),
 }
 

@@ -176,7 +176,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let socket_path = dir.path().join("test.sock");
 
-        let new_server = SocketServer::bind(&socket_path).await.unwrap();
+        let _server = SocketServer::bind(&socket_path).await.unwrap();
         
         assert!(socket_path.exists());
     }
