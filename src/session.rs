@@ -1,6 +1,6 @@
 // src/session.rs
 
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
 /// A session that is not currently blocking
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -11,6 +11,7 @@ pub struct IdleSession;
 pub struct ActiveSession {
     started_at: Instant,
     duration: Duration,
+    wall_started_at: SystemTime,
 }
 
 /// Wrapper enum for holding either session state
@@ -30,6 +31,7 @@ impl IdleSession {
         ActiveSession { 
             started_at: Instant::now(), 
             duration, 
+            wall_started_at: SystemTime::now(),
         }
     }
 }
@@ -40,6 +42,7 @@ impl ActiveSession {
         Self {
             started_at: Instant::now(),
             duration,
+            wall_started_at: SystemTime::now(),
         }
     }
 

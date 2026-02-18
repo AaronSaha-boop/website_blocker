@@ -1,4 +1,9 @@
 use regex::Regex;
+use std::sync::LazyLock;
+
+static DURATION_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$").unwrap()
+});
 
 #[derive(Debug, PartialEq)]
 pub enum ParseError {
@@ -6,15 +11,14 @@ pub enum ParseError {
     InvalidFormat,
 }
 
-fn parse_time_to_seconds(input: &str) -> Result<u64, ParseError> {
+pub fn parse_time_to_seconds(input: &str) -> Result<u64, ParseError> {
     if input.is_empty() {
         return Err(ParseError::Empty);
     }
     
     // Anchored regex — must match entire input
-    let re = Regex::new(r"^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$").unwrap();
     
-    let caps = re.captures(input).ok_or(ParseError::InvalidFormat)?;
+    let caps = DURATION_RE.captures(input).ok_or(ParseError::InvalidFormat)?;
     
     let hours: u64 = caps.get(1).map_or(0, |m| m.as_str().parse().unwrap_or(0));
     let minutes: u64 = caps.get(2).map_or(0, |m| m.as_str().parse().unwrap_or(0));

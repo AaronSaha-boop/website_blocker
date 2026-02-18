@@ -46,6 +46,10 @@ impl AppState {
     }
 }
 
+pub async fn wait_for_ctrl_c() {
+    tokio::signal::ctrl_c().await.expect("Failed to listen for ctrl_c event");
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

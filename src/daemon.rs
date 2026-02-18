@@ -11,13 +11,14 @@
 //! - Shutdown signals are blocked during active sessions
 //! - Sessions expire naturally based on their duration
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::Duration;
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot, broadcast};
 use tokio::time::{self, Interval};
-use nix::sys::signal::{self, Signal};
+use nix::sys::signal;
 use nix::unistd::Pid;
+use std::path::Path;
 
 use crate::config::config::Config;
 use crate::fs::{self, FsError};
@@ -164,6 +165,7 @@ pub struct DaemonActor {
     config: Config,
     socket_server: SocketServer,
     timer: Interval,
+    session: Session,
 }
 
 impl DaemonActor {
@@ -183,6 +185,7 @@ impl DaemonActor {
             config,
             socket_server,
             timer,
+            session: Session::Idle(IdleSession::new()),
         })
     }
 
@@ -196,10 +199,8 @@ impl DaemonActor {
         // PID file locking
         let _pid_guard = self.lock_pid_file().await?;
 
-        let mut session = Session::Idle(IdleSession::new());
-
         // Broadcast initial state
-        let _ = self.session_tx.send(session.clone());
+        let _ = self.session_tx.send(self.session.clone());
 
         loop {
             tokio::select! {
@@ -207,9 +208,8 @@ impl DaemonActor {
                 // Process commands from DaemonHandle
                 // ─────────────────────────────────────────
                 Some(cmd) = self.rx.recv() => {
-                    match self.handle_command(cmd, session).await {
-                        Ok((new_session, should_exit)) => {
-                            session = new_session;
+                    match self.handle_command(cmd).await {
+                        Ok(should_exit) => {
                             if should_exit {
                                 break;
                             }
@@ -224,24 +224,21 @@ impl DaemonActor {
                 // Tick: check session expiration
                 // ─────────────────────────────────────────
                 _ = self.timer.tick() => {
-                    session = self.handle_tick(session).await;
+                    self.handle_tick().await;
                 }
 
                 // ─────────────────────────────────────────
                 // Accept socket connections
                 // ─────────────────────────────────────────
-                result = self.socket_server.accept(Duration::from_secs(5)) => {
+                result = self.socket_server.accept_no_timeout(Duration::from_secs(5)) => {
                     match result {
-                        Ok(mut conn) => {
+                        Ok(conn) => {
                             let tx = self.cmd_tx.clone();
                             tokio::spawn(async move {
-                                if let Err(e) = handle_connection(&mut conn, tx).await {
-                                    eprintln!("Connection handler error: {}", e);
+                                if let Err(e) = handle_connection(conn, tx).await {
+                                    eprintln!("Error handling client connection: {}", e);
                                 }
                             });
-                        }
-                        Err(SocketError::Timeout { .. }) => {
-                            // Normal timeout, continue
                         }
                         Err(e) => {
                             eprintln!("Socket accept error: {}", e);
@@ -258,29 +255,25 @@ impl DaemonActor {
 
     /// Handle a command and return (new_session, should_exit).
     async fn handle_command(
-        &self,
+        &mut self,
         cmd: Command,
-        mut session: Session,
-    ) -> Result<(Session, bool), DaemonError> {
+    ) -> Result<bool, DaemonError> {
         let mut should_exit = false;
 
         match cmd {
             Command::Start { duration, reply } => {
-                let result = match session {
+                let result = match self.session {
                     Session::Idle(idle) => {
                         // IO: Add blocks to hosts file
                         match self.add_blocks().await {
                             Ok(()) => {
                                 // Typestate Transition: Idle -> Active
                                 let active = idle.start(duration);
-                                session = Session::Active(active);
-                                let _ = self.session_tx.send(session.clone());
+                                self.session = Session::Active(active);
+                                let _ = self.session_tx.send(self.session.clone());
                                 Ok(())
                             }
-                            Err(e) => {
-                                session = Session::Idle(idle);
-                                Err(e)
-                            }
+                            Err(e) => Err(e)
                         }
                     }
                     Session::Active(_) => {
@@ -292,7 +285,7 @@ impl DaemonActor {
 
             Command::Stop { reply } => {
                 // COLD TURKEY: Stop is NEVER allowed during active session
-                let result = if session.is_active() {
+                let result = if self.session.is_active() {
                     Err(DaemonError::Session(
                         "Cannot stop active session. Stay focused!".into()
                     ))
@@ -304,13 +297,13 @@ impl DaemonActor {
             }
 
             Command::GetStatus { reply } => {
-                let _ = reply.send(session.clone());
+                let _ = reply.send(self.session.clone());
             }
 
             Command::Shutdown { force, reply } => {
-                if session.is_active() && !force {
+                if self.session.is_active() && !force {
                     // COLD TURKEY: Block shutdown during active session
-                    let remaining = session.remaining().as_secs();
+                    let remaining = self.session.remaining().as_secs();
                     let _ = reply.send(Err(DaemonError::ShutdownBlocked(remaining)));
                     
                     eprintln!();
@@ -321,7 +314,7 @@ impl DaemonActor {
                     eprintln!("╚══════════════════════════════════════════════════════════╝");
                     eprintln!();
                 } else {
-                    if force && session.is_active() {
+                    if force && self.session.is_active() {
                         eprintln!("Warning: Forced shutdown during active session");
                     }
                     let _ = reply.send(Ok(()));
@@ -330,26 +323,24 @@ impl DaemonActor {
             }
         }
 
-        Ok((session, should_exit))
+        Ok(should_exit)
     }
 
     /// Handle timer tick: check for session expiration.
-    async fn handle_tick(&self, session: Session) -> Session {
-        match session {
+    async fn handle_tick(&mut self) {
+        match self.session {
             Session::Active(active) if active.remaining() == Duration::ZERO => {
-                // Session expired!
                 println!("Session expired. Removing blocks...");
                 
                 if let Err(e) = self.remove_blocks().await {
                     eprintln!("Failed to remove blocks on expiration: {}", e);
                 }
 
-                // Typestate Transition: Active -> Idle
                 let new_session = Session::Idle(active.stop());
                 let _ = self.session_tx.send(new_session.clone());
-                new_session
+                self.session = new_session;
             }
-            other => other,
+            _ => {}
         }
     }
 
@@ -437,7 +428,7 @@ fn is_process_running(pid: i32) -> bool {
 
 /// Handle an individual socket connection from a client.
 async fn handle_connection(
-    conn: &mut Connection,
+    mut conn: Connection,
     tx: mpsc::Sender<Command>,
 ) -> Result<(), DaemonError> {
     while let Some(bytes) = conn.recv().await? {
@@ -524,6 +515,7 @@ pub async fn run(config: Config) -> Result<DaemonHandle, DaemonError> {
 
     Ok(handle)
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tests

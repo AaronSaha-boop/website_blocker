@@ -93,6 +93,12 @@ impl SocketServer {
         Ok(Connection::new(stream, timeout))
     }
 
+    pub async fn accept_no_timeout(&self, conn_timeout: Duration) -> Result<Connection, SocketError> {
+        let (stream, _addr) = self.listener.accept().await
+            .map_err(|e| SocketError::AcceptFailed { source: e })?;
+        Ok(Connection::new(stream, conn_timeout))
+    }
+
     pub fn path(&self) -> &Path {
         &self.path
     }
