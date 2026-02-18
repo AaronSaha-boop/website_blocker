@@ -1,10 +1,7 @@
-use thiserror::Error;
 
-#[derive(Debug, PartialEq, Error)]
+#[derive(Debug, PartialEq)]
 pub enum ConfigError {
-    #[error("Config parse error: {0}")]
     ParseError(String),
-    #[error("Blocked list cannot be empty")]
     EmptyBlockedList,
 }
 

@@ -34,29 +34,22 @@ impl Config {
             .ok_or(ConfigError::EmptyBlockedList)?;
         
         Ok(Config {
-            hosts_file: expand_path(&raw.hosts_file)?,
-            socket_path: expand_path(&raw.socket_path)?,
-            pid_path: expand_path(&raw.pid_path)?,
+            hosts_file: expand_path(&raw.hosts_file),
+            socket_path: expand_path(&raw.socket_path),
+            pid_path: expand_path(&raw.pid_path),
             blocked,
         })
     }
-    pub fn load() -> Result<Self, ConfigError> {
-        let config_dir = dirs::config_dir()
-            .ok_or_else(|| ConfigError::ParseError("No config directory found".into()))?;
-        let config_path = config_dir.join("focusd").join("config.toml");
-        let content = std::fs::read_to_string(&config_path)
-            .map_err(|e| ConfigError::ParseError(format!("Failed to read {}: {}", config_path.display(), e)))?;
-        Self::from_toml(&content)
-    }
 }
 
-fn expand_path(path: &str) -> Result<PathBuf, ConfigError> {
+fn expand_path(path: &str) -> PathBuf {
     if let Some(stripped) = path.strip_prefix("~/") {
-        let home = dirs::home_dir()
-            .ok_or_else(|| ConfigError::ParseError("HOME directory not found".into()))?;
-        Ok(home.join(stripped))
+        let home = dirs::home_dir().unwrap();
+        home.join(stripped)
+    } else if path == "~" {
+        dirs::home_dir().unwrap()
     } else {
-        Ok(path.into())
+        path.into()
     }
 }
 
