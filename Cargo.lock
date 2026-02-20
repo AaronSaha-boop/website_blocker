@@ -144,6 +144,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
 
 [[package]]
+name = "dark_pattern_blocker"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "clap",
+ "dirs",
+ "futures",
+ "nix",
+ "regex",
+ "rmp-serde",
+ "serde",
+ "tempfile",
+ "thiserror 1.0.69",
+ "time-hms",
+ "tokio",
+ "tokio-util",
+ "toml",
+]
+
+[[package]]
 name = "dirs"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -926,27 +947,6 @@ dependencies = [
  "hashbrown 0.15.5",
  "indexmap",
  "semver",
-]
-
-[[package]]
-name = "website_blocker"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bytes",
- "clap",
- "dirs",
- "futures",
- "nix",
- "regex",
- "rmp-serde",
- "serde",
- "tempfile",
- "thiserror 1.0.69",
- "time-hms",
- "tokio",
- "tokio-util",
- "toml",
 ]
 
 [[package]]

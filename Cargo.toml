@@ -1,5 +1,5 @@
 [package]
-name = "website_blocker"
+name = "dark_pattern_blocker"
 version = "0.1.0"
 edition = "2024"
 
