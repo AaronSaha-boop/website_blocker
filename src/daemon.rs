@@ -1,6 +1,6 @@
 // src/daemon.rs
 
-//! focusd daemon - the core focus session manager.
+//! dark-pattern daemon - the core focus session manager.
 //!
 //! The daemon is implemented using the Actor model:
 //! - `DaemonHandle`: The public API (Handle) that communicates with the actor via MPSC.
@@ -546,7 +546,7 @@ mod tests {
         use std::sync::atomic::{AtomicUsize, Ordering};
         static COUNTER: AtomicUsize = AtomicUsize::new(0);
         let id = COUNTER.fetch_add(1, Ordering::SeqCst);
-        PathBuf::from(format!("/tmp/focusd_test_{}_{}.{}", std::process::id(), id, suffix))
+        PathBuf::from(format!("/tmp/dark-pattern_test_{}_{}.{}", std::process::id(), id, suffix))
     }
 
     #[tokio::test]
