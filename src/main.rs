@@ -6,12 +6,12 @@ use std::time::Duration;
 use dark_pattern_blocker::client;
 use dark_pattern_blocker::config::config::Config;
 use dark_pattern_blocker::daemon;
-use dark_pattern_blocker::parse_duration::parse_time_to_seconds;
 use dark_pattern_blocker::format_duration::format_duration;
+use dark_pattern_blocker::parse_duration::parse_time_to_seconds;
 use dark_pattern_blocker::protocols::{self, ClientMessage, DaemonMessage};
 use dark_pattern_blocker::socket::Connection;
 
-const SOCKET_PATH: &str = "/tmp/dark-pattern.sock"; // match your config
+const SOCKET_PATH: &str = "/tmp/dark-pattern.sock";
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Parser)]
@@ -23,6 +23,9 @@ struct Cli {
 
 #[derive(Parser)]
 enum Command {
+    /// Start the daemon process
+    Daemon,
+
     /// Start a focus session (e.g. "25m", "1h30m")
     Start { duration: String },
 
@@ -32,7 +35,14 @@ enum Command {
     /// Check session status
     Status,
 
-    Daemon,
+    /// Add a website to the block list
+    Add { url: String },
+
+    /// Remove a website from the block list
+    Remove { url: String },
+
+    /// List all blocked websites
+    List,
 }
 
 #[tokio::main]
@@ -44,13 +54,14 @@ async fn main() {
         cmd => run_client(cmd).await,
     }
 }
-// --Daemon Mode---------------------------------------------------
+
+// ── Daemon ──────────────────────────────────────────────────────────────────
 
 async fn run_daemon() {
     let config = match Config::load() {
         Ok(c) => c,
         Err(e) => {
-            eprint!("Failed to load config: {}", e);
+            eprintln!("Failed to load config: {}", e);
             std::process::exit(1);
         }
     };
@@ -58,32 +69,32 @@ async fn run_daemon() {
     let handle = match daemon::run(config).await {
         Ok(h) => h,
         Err(e) => {
-            eprint!("Failed to load daemon: {}", e);
+            eprintln!("Failed to start daemon: {}", e);
             std::process::exit(1);
         }
     };
 
-    tokio::signal::ctrl_c().await.expect("failed to listen to ctrl_c");
+    tokio::signal::ctrl_c().await.expect("failed to listen for ctrl_c");
     let _ = handle.shutdown(false).await;
 }
 
-//----- Client Mode ------------------------------------------------------------------
+// ── Client ──────────────────────────────────────────────────────────────────
 
-async fn run_client(cmd: Command){
+async fn run_client(cmd: Command) {
     let mut conn = match client::connect(SOCKET_PATH, CONNECT_TIMEOUT).await {
         Ok(c) => c,
         Err(_) => {
-            eprint!("Failed to connect to daemon. is it running?");
+            eprintln!("Failed to connect to daemon. Is it running?");
             std::process::exit(1);
         }
-    };   
+    };
 
     let msg = match cmd {
-        Command::Start { duration } =>{
+        Command::Start { duration } => {
             let seconds = match parse_time_to_seconds(&duration) {
                 Ok(s) => s,
                 Err(_) => {
-                    eprint!("invalid duration '{}' use formats like 25m, 1h30m, 90s", duration);
+                    eprintln!("Invalid duration '{}'. Use formats like 25m, 1h30m, 90s", duration);
                     std::process::exit(1);
                 }
             };
@@ -91,26 +102,27 @@ async fn run_client(cmd: Command){
         }
         Command::Stop => ClientMessage::Stop,
         Command::Status => ClientMessage::GetStatus,
+        Command::Add { url } => ClientMessage::AddWebsite { url },
+        Command::Remove { url } => ClientMessage::RemoveWebsite { url },
+        Command::List => ClientMessage::ListWebsites,
         Command::Daemon => unreachable!(),
-
     };
 
-    send_and_handle(&mut conn, msg).await;
+    send_and_print(&mut conn, msg).await;
 }
 
-//rewrite match function later, alot of repeat code. 
-async fn send_and_handle(conn: &mut Connection, msg: ClientMessage){
-    let bytes = match protocols::encode(&msg){
+async fn send_and_print(conn: &mut Connection, msg: ClientMessage) {
+    let bytes = match protocols::encode(&msg) {
         Ok(b) => b,
         Err(e) => {
-            eprint!("Failed to encode message: {}", e);
+            eprintln!("Failed to encode message: {}", e);
             std::process::exit(1);
-        }        
+        }
     };
 
-    if let Err(e) =  conn.send(&bytes).await {
-            eprint!("Failed to send: {}", e);
-            std::process::exit(1);
+    if let Err(e) = conn.send(&bytes).await {
+        eprintln!("Failed to send: {}", e);
+        std::process::exit(1);
     }
 
     let response_bytes = match conn.recv().await {
@@ -122,17 +134,16 @@ async fn send_and_handle(conn: &mut Connection, msg: ClientMessage){
         Err(e) => {
             eprintln!("Failed to receive: {}", e);
             std::process::exit(1);
-        }        
+        }
     };
 
     let response: DaemonMessage = match protocols::decode(&response_bytes) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("failed to decode response: {}", e);
+            eprintln!("Failed to decode response: {}", e);
             std::process::exit(1);
         }
     };
-
 
     match response {
         DaemonMessage::Started { duration } => {
@@ -150,60 +161,24 @@ async fn send_and_handle(conn: &mut Connection, msg: ClientMessage){
         DaemonMessage::Pong => {
             println!("Pong");
         }
+        DaemonMessage::WebsiteAdded { url } => {
+            println!("Added: {}", url);
+        }
+        DaemonMessage::WebsiteRemoved { url } => {
+            println!("Removed: {}", url);
+        }
+        DaemonMessage::WebsiteList { websites } => {
+            if websites.is_empty() {
+                println!("No blocked websites");
+            } else {
+                for site in &websites {
+                    println!("  {}", site);
+                }
+            }
+        }
         DaemonMessage::Error(msg) => {
             eprintln!("{}", msg);
             std::process::exit(1);
         }
     }
 }
-
-
-// src/main.rs
-
-// Dependencies: clap with derive feature
-// Commands: start <duration>, stop, status, shutdown
-
-// ── CLI Definition ──────────────────────────────────────────────
-//
-// #[derive(Parser)]
-// - program name, version, about
-//
-// #[derive(Subcommand)]
-// - Start { duration: String }     ← "25m", "1h30m", etc.
-// - Stop
-// - Status
-// - Shutdown { --force flag }
-
-// ── Main ────────────────────────────────────────────────────────
-//
-// 1. Parse CLI args
-// 2. Connect to daemon socket using client::connect()
-//    - socket path: same as config, or hardcode for now
-//    - handle "connection refused" = daemon not running
-// 3. Match on subcommand:
-//
-//    Start { duration } →
-//      parse_time_to_seconds(duration)
-//      send ClientMessage::Start { duration }
-//      expect DaemonMessage::Started or Error
-//      print confirmation + duration
-//
-//    Stop →
-//      send ClientMessage::Stop
-//      expect DaemonMessage::Stopped or Error
-//      print result (will always fail during session — that's correct)
-//
-//    Status →
-//      send ClientMessage::GetStatus
-//      expect StatusIdle or StatusWithTime
-//      print "Idle" or "Active: Xm Ys remaining"
-//      use format_duration here
-//
-//    Shutdown →
-//      you'll need to add ClientMessage::Shutdown to protocols.rs
-//      or skip this command for now — ctrl+c / launchctl is enough
-//
-// 4. Handle all DaemonMessage::Error variants → print to stderr, exit 1
-
-// ── New dependency ──────────────────────────────────────────────
-// Cargo.toml: clap = { version = "4", features = ["derive"] }
