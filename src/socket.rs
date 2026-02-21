@@ -82,6 +82,11 @@ impl SocketServer {
                 path: path.clone(), 
                 source: e 
             })?;
+
+        // Allow non-root users to connect
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o766))
+            .map_err(|e| SocketError::BindFailed { path: path.clone(), source: e })?;
         
         Ok(Self { listener, path })
     }
