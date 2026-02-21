@@ -1,123 +1,121 @@
-// src/config/config.rs
+// src/session.rs
 
-use std::path::PathBuf;
-use serde::Deserialize;
+use std::time::{Duration, Instant};
 
-use super::non_empty_vec::NonEmptyVec;
-use super::error::ConfigError;
+// ─────────────────────────────────────────────────────────────────────────────
+// Session (enum over typestates)
+// ─────────────────────────────────────────────────────────────────────────────
 
-/// Raw config - mirrors TOML structure exactly
-#[derive(Deserialize)]
-struct RawConfig {
-    hosts_file: String,
-    socket_path: String,
-    pid_path: String,
-    blocked: Vec<String>,
+#[derive(Debug, Clone, Copy)]
+pub enum Session {
+    Idle(IdleSession),
+    Active(ActiveSession),
 }
 
-/// Validated config - guaranteed valid if it exists
-#[derive(Debug, PartialEq)]
-pub struct Config {
-    // TODO: strong types for paths
-    pub hosts_file: PathBuf,
-    pub socket_path: PathBuf,
-    pub pid_path: PathBuf,
-    pub blocked: NonEmptyVec<String>,
-}
-
-impl Config {
-    pub fn from_toml(content: &str) -> Result<Self, ConfigError> {
-        let raw: RawConfig = toml::from_str(content)
-            .map_err(|e| ConfigError::ParseError(e.to_string()))?;
-        
-        let blocked = NonEmptyVec::new(raw.blocked)
-            .ok_or(ConfigError::EmptyBlockedList)?;
-        
-        Ok(Config {
-            hosts_file: expand_path(&raw.hosts_file)?,
-            socket_path: expand_path(&raw.socket_path)?,
-            pid_path: expand_path(&raw.pid_path)?,
-            blocked,
-        })
+impl Session {
+    pub fn is_active(&self) -> bool {
+        matches!(self, Session::Active(_))
     }
-    pub fn load() -> Result<Self, ConfigError> {
-        let config_path = PathBuf::from("/usr/local/etc/dark-pattern/config.toml");
-        let content = std::fs::read_to_string(&config_path)
-            .map_err(|e| ConfigError::ParseError(format!("Failed to read {}: {}", config_path.display(), e)))?;
-        Self::from_toml(&content)
+
+    pub fn remaining(&self) -> Duration {
+        match self {
+            Session::Active(a) => a.remaining(),
+            Session::Idle(_) => Duration::ZERO,
+        }
     }
 }
 
-fn expand_path(path: &str) -> Result<PathBuf, ConfigError> {
-    if let Some(stripped) = path.strip_prefix("~/") {
-        let home = dirs::home_dir()
-            .ok_or_else(|| ConfigError::ParseError("HOME directory not found".into()))?;
-        Ok(home.join(stripped))
-    } else {
-        Ok(path.into())
+// ─────────────────────────────────────────────────────────────────────────────
+// Idle State
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy)]
+pub struct IdleSession;
+
+impl IdleSession {
+    pub fn new() -> Self {
+        Self
+    }
+
+    /// Transition: Idle -> Active
+    pub fn start(self, duration: Duration) -> ActiveSession {
+        ActiveSession {
+            deadline: Instant::now() + duration,
+        }
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Active State
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy)]
+pub struct ActiveSession {
+    deadline: Instant,
+}
+
+impl ActiveSession {
+    pub fn remaining(&self) -> Duration {
+        self.deadline.saturating_duration_since(Instant::now())
+    }
+
+    /// Transition: Active -> Idle
+    pub fn stop(self) -> IdleSession {
+        IdleSession
+    }
+
+    #[cfg(test)]
+    pub fn new_for_test(duration: Duration) -> Self {
+        Self {
+            deadline: Instant::now() + duration,
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tests
+// ─────────────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn valid_config_parses() {
-        let toml = r#"
-        hosts_file = "/etc/hosts"
-        socket_path = "/tmp/dark-pattern.sock"
-        pid_path = "/tmp/dark-pattern.pid"
-        blocked = ["reddit.com", "youtube.com"]
-        "#;
-        let config = Config::from_toml(toml);
-        assert!(config.is_ok());
-        
-        let config = config.unwrap();
-        assert_eq!(config.blocked.as_slice().len(), 2);
+    fn idle_session_is_not_active() {
+        let session = Session::Idle(IdleSession::new());
+        assert!(!session.is_active());
+        assert_eq!(session.remaining(), Duration::ZERO);
     }
 
     #[test]
-    fn empty_blocked_list_returns_error() {
-        let toml = r#"
-        hosts_file = "/etc/hosts"
-        socket_path = "/tmp/dark-pattern.sock"
-        pid_path = "/tmp/dark-pattern.pid"
-        blocked = []
-        "#;
-        let config = Config::from_toml(toml);
-        assert_eq!(config, Err(ConfigError::EmptyBlockedList));
+    fn start_transitions_to_active() {
+        let idle = IdleSession::new();
+        let active = idle.start(Duration::from_secs(60));
+        let session = Session::Active(active);
+        assert!(session.is_active());
+        assert!(session.remaining() > Duration::from_secs(50));
     }
 
     #[test]
-    fn invalid_toml_returns_parse_error() {
-        let toml = "this is not valid toml {{{{";
-        let config = Config::from_toml(toml);
-        assert!(matches!(config, Err(ConfigError::ParseError(_))));
+    fn stop_transitions_to_idle() {
+        let idle = IdleSession::new();
+        let active = idle.start(Duration::from_secs(60));
+        let _back_to_idle = active.stop();
     }
 
     #[test]
-    fn missing_field_returns_parse_error() {
-        let toml = r#"
-        hosts_file = "/etc/hosts"
-        "#;
-        let config = Config::from_toml(toml);
-        assert!(matches!(config, Err(ConfigError::ParseError(_))));
+    fn remaining_decreases_over_time() {
+        let active = ActiveSession::new_for_test(Duration::from_secs(60));
+        let r1 = active.remaining();
+        std::thread::sleep(Duration::from_millis(50));
+        let r2 = active.remaining();
+        assert!(r2 < r1);
     }
 
     #[test]
-    fn tilde_paths_are_expanded() {
-        let toml = r#"
-        hosts_file = "~/hosts"
-        socket_path = "~/dark-pattern.sock"
-        pid_path = "~/dark-pattern.pid"
-        blocked = ["reddit.com"]
-        "#;
-        let config = Config::from_toml(toml).unwrap();
-        
-        // Should NOT contain tilde
-        assert!(!config.hosts_file.to_string_lossy().contains('~'));
-        // Should contain home directory
-        assert!(config.hosts_file.to_string_lossy().len() > 7);
+    fn expired_session_returns_zero() {
+        let active = ActiveSession::new_for_test(Duration::from_millis(1));
+        std::thread::sleep(Duration::from_millis(10));
+        assert_eq!(active.remaining(), Duration::ZERO);
     }
 }
