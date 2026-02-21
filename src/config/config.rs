@@ -41,9 +41,7 @@ impl Config {
         })
     }
     pub fn load() -> Result<Self, ConfigError> {
-        let config_dir = dirs::config_dir()
-            .ok_or_else(|| ConfigError::ParseError("No config directory found".into()))?;
-        let config_path = config_dir.join("focusd").join("config.toml");
+        let config_path = PathBuf::from("/usr/local/etc/dark-pattern/config.toml");
         let content = std::fs::read_to_string(&config_path)
             .map_err(|e| ConfigError::ParseError(format!("Failed to read {}: {}", config_path.display(), e)))?;
         Self::from_toml(&content)
@@ -68,8 +66,8 @@ mod tests {
     fn valid_config_parses() {
         let toml = r#"
         hosts_file = "/etc/hosts"
-        socket_path = "/tmp/focusd.sock"
-        pid_path = "/tmp/focusd.pid"
+        socket_path = "/tmp/dark-pattern.sock"
+        pid_path = "/tmp/dark-pattern.pid"
         blocked = ["reddit.com", "youtube.com"]
         "#;
         let config = Config::from_toml(toml);
@@ -83,8 +81,8 @@ mod tests {
     fn empty_blocked_list_returns_error() {
         let toml = r#"
         hosts_file = "/etc/hosts"
-        socket_path = "/tmp/focusd.sock"
-        pid_path = "/tmp/focusd.pid"
+        socket_path = "/tmp/dark-pattern.sock"
+        pid_path = "/tmp/dark-pattern.pid"
         blocked = []
         "#;
         let config = Config::from_toml(toml);
@@ -111,8 +109,8 @@ mod tests {
     fn tilde_paths_are_expanded() {
         let toml = r#"
         hosts_file = "~/hosts"
-        socket_path = "~/focusd.sock"
-        pid_path = "~/focusd.pid"
+        socket_path = "~/dark-pattern.sock"
+        pid_path = "~/dark-pattern.pid"
         blocked = ["reddit.com"]
         "#;
         let config = Config::from_toml(toml).unwrap();

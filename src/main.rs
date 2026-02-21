@@ -4,16 +4,18 @@ use clap::Parser;
 use std::time::Duration;
 
 use dark_pattern_blocker::client;
+use dark_pattern_blocker::config::config::Config;
+use dark_pattern_blocker::daemon;
 use dark_pattern_blocker::parse_duration::parse_time_to_seconds;
 use dark_pattern_blocker::format_duration::format_duration;
 use dark_pattern_blocker::protocols::{self, ClientMessage, DaemonMessage};
 use dark_pattern_blocker::socket::Connection;
 
-const SOCKET_PATH: &str = "/tmp/focusd.sock"; // match your config
+const SOCKET_PATH: &str = "/tmp/dark-pattern.sock"; // match your config
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Parser)]
-#[clap(name = "focusd", version = "0.1.0", about = "Focus session manager")]
+#[clap(name = "dark-pattern", version = "0.1.0", about = "Focus session manager")]
 struct Cli {
     #[clap(subcommand)]
     command: Command,
@@ -30,58 +32,87 @@ enum Command {
     /// Check session status
     Status,
 
-    Ping,
+    Daemon,
 }
 
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
 
-    let mut conn = match client::connect(SOCKET_PATH, CONNECT_TIMEOUT).await {
+    match cli.command {
+        Command::Daemon => run_daemon().await,
+        cmd => run_client(cmd).await,
+    }
+}
+// --Daemon Mode---------------------------------------------------
+
+async fn run_daemon() {
+    let config = match Config::load() {
         Ok(c) => c,
-        Err(_) => {
-            eprintln!("Could not connect to daemon. Is focusd running?");
+        Err(e) => {
+            eprint!("Failed to load config: {}", e);
             std::process::exit(1);
         }
     };
 
-    match cli.command {
-        Command::Start { duration } => {
+    let handle = match daemon::run(config).await {
+        Ok(h) => h,
+        Err(e) => {
+            eprint!("Failed to load daemon: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    tokio::signal::ctrl_c().await.expect("failed to listen to ctrl_c");
+    let _ = handle.shutdown(false).await;
+}
+
+//----- Client Mode ------------------------------------------------------------------
+
+async fn run_client(cmd: Command){
+    let mut conn = match client::connect(SOCKET_PATH, CONNECT_TIMEOUT).await {
+        Ok(c) => c,
+        Err(_) => {
+            eprint!("Failed to connect to daemon. is it running?");
+            std::process::exit(1);
+        }
+    };   
+
+    let msg = match cmd {
+        Command::Start { duration } =>{
             let seconds = match parse_time_to_seconds(&duration) {
                 Ok(s) => s,
                 Err(_) => {
-                    eprintln!("Invalid duration: '{}'. Use format like 25m, 1h30m, 90s", duration);
+                    eprint!("invalid duration '{}' use formats like 25m, 1h30m, 90s", duration);
                     std::process::exit(1);
                 }
             };
-
-            let msg = ClientMessage::Start { duration: seconds };
-            send_and_handle(&mut conn, msg).await;
+            ClientMessage::Start { duration: seconds }
         }
+        Command::Stop => ClientMessage::Stop,
+        Command::Status => ClientMessage::GetStatus,
+        Command::Daemon => unreachable!(),
 
-        Command::Stop => {
-            send_and_handle(&mut conn, ClientMessage::Stop).await;
-        }
+    };
 
-        Command::Status => {
-            send_and_handle(&mut conn, ClientMessage::GetStatus).await;
-        }
-
-        Command::Ping => {
-            send_and_handle(&mut conn, ClientMessage::Ping).await;
-        }
-    }
+    send_and_handle(&mut conn, msg).await;
 }
 
-async fn send_and_handle(conn: &mut Connection, msg: ClientMessage) {
-    // Encode and send
-    let bytes = protocols::encode(&msg).expect("Failed to encode message");
-    if let Err(e) = conn.send(&bytes).await {
-        eprintln!("Failed to send: {}", e);
-        std::process::exit(1);
+//rewrite match function later, alot of repeat code. 
+async fn send_and_handle(conn: &mut Connection, msg: ClientMessage){
+    let bytes = match protocols::encode(&msg){
+        Ok(b) => b,
+        Err(e) => {
+            eprint!("Failed to encode message: {}", e);
+            std::process::exit(1);
+        }        
+    };
+
+    if let Err(e) =  conn.send(&bytes).await {
+            eprint!("Failed to send: {}", e);
+            std::process::exit(1);
     }
 
-    // Receive and decode response
     let response_bytes = match conn.recv().await {
         Ok(Some(b)) => b,
         Ok(None) => {
@@ -91,18 +122,18 @@ async fn send_and_handle(conn: &mut Connection, msg: ClientMessage) {
         Err(e) => {
             eprintln!("Failed to receive: {}", e);
             std::process::exit(1);
-        }
+        }        
     };
 
     let response: DaemonMessage = match protocols::decode(&response_bytes) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("Failed to decode response: {}", e);
+            eprintln!("failed to decode response: {}", e);
             std::process::exit(1);
         }
     };
 
-    // Handle response
+
     match response {
         DaemonMessage::Started { duration } => {
             println!("Session started: {}", format_duration(duration));
@@ -125,6 +156,7 @@ async fn send_and_handle(conn: &mut Connection, msg: ClientMessage) {
         }
     }
 }
+
 
 // src/main.rs
 
