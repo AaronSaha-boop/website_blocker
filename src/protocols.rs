@@ -3,6 +3,10 @@
 use serde::{Serialize, Deserialize, de::DeserializeOwned};
 use thiserror::Error;
 
+use crate::db::{
+    ActivePolicy, BlockedApp, BlockedWebsite, DomRule, ManualSession, Profile, Schedule,
+};
+
 #[derive(Debug, PartialEq, Error)]
 pub enum ProtocolError {
     #[error("Encode error: {0}")]
@@ -17,22 +21,102 @@ pub enum ClientMessage {
     Start { duration: u64 },
     Stop,
     GetStatus,
-    AddWebsite { url: String },
-    RemoveWebsite { url: String },
-    ListWebsites,
+
+    // Profiles
+    CreateProfile { name: String },
+    GetProfile { id: String },
+    ListProfiles,
+    UpdateProfile { profile: Profile },
+    DeleteProfile { id: String },
+
+    // Schedules
+    CreateSchedule { schedule: Schedule },
+    GetSchedule { id: i64 },
+    ListSchedules { profile_id: String },
+    UpdateSchedule { schedule: Schedule },
+    DeleteSchedule { id: i64 },
+
+    // Blocked Websites (profile-specific)
+    CreateBlockedWebsite { website: BlockedWebsite },
+    ListBlockedWebsites { profile_id: String },
+    DeleteBlockedWebsite { id: i64 },
+
+    // Blocked Apps
+    CreateBlockedApp { app: BlockedApp },
+    GetBlockedApp { id: i64 },
+    ListBlockedApps { profile_id: String },
+    DeleteBlockedApp { id: i64 },
+
+    // DOM Rules
+    CreateDomRule { rule: DomRule },
+    GetDomRule { id: i64 },
+    ListDomRules { profile_id: String },
+    DeleteDomRule { id: i64 },
+
+    // Manual Sessions
+    CreateManualSession { session: ManualSession },
+    GetManualSession { id: i64 },
+    GetActiveManualSession,
+    ListManualSessions,
+    UpdateManualSession { session: ManualSession },
+
+    // Global Blocked Websites
+    AddGlobalWebsite { domain: String },
+    RemoveGlobalWebsite { domain: String },
+    ListGlobalWebsites,
+
+    // Active Policy
+    GetActivePolicy { current_day: String, current_time: String },
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum DaemonMessage {
     Pong,
     Started { duration: u64 },
-    StatusWithTime { time_left: u64 },
-    StatusIdle,
+    StatusWithTime { time_left: u64, sites: Vec<String> },
+    StatusIdle { sites: Vec<String> },
     Stopped,
-    WebsiteAdded { url: String },
-    WebsiteRemoved { url: String },
-    WebsiteList { websites: Vec<String> },
     Error(String),
+
+    // Profiles
+    Profile(Profile),
+    ProfileList(Vec<Profile>),
+    ProfileUpdated,
+    ProfileDeleted,
+
+    // Schedules
+    Schedule(Schedule),
+    ScheduleList(Vec<Schedule>),
+    ScheduleUpdated,
+    ScheduleDeleted,
+
+    // Blocked Websites
+    BlockedWebsite(BlockedWebsite),
+    BlockedWebsiteList(Vec<BlockedWebsite>),
+    BlockedWebsiteDeleted,
+
+    // Blocked Apps
+    BlockedApp(BlockedApp),
+    BlockedAppList(Vec<BlockedApp>),
+    BlockedAppDeleted,
+
+    // DOM Rules
+    DomRule(DomRule),
+    DomRuleList(Vec<DomRule>),
+    DomRuleDeleted,
+
+    // Manual Sessions
+    ManualSession(Option<ManualSession>),
+    ManualSessionList(Vec<ManualSession>),
+    ManualSessionUpdated,
+
+    // Global Blocked Websites
+    GlobalWebsiteAdded(bool),
+    GlobalWebsiteRemoved(bool),
+    GlobalWebsiteList(Vec<String>),
+
+    // Active Policy
+    ActivePolicy(ActivePolicy),
 }
 
 pub fn encode<T: Serialize>(msg: &T) -> Result<Vec<u8>, ProtocolError> {
@@ -74,17 +158,25 @@ mod tests {
     fn get_status_roundtrip() { roundtrip_client(ClientMessage::GetStatus); }
 
     #[test]
-    fn add_website_roundtrip() {
-        roundtrip_client(ClientMessage::AddWebsite { url: "reddit.com".into() });
+    fn add_global_website_roundtrip() {
+        roundtrip_client(ClientMessage::AddGlobalWebsite { domain: "reddit.com".into() });
     }
 
     #[test]
-    fn remove_website_roundtrip() {
-        roundtrip_client(ClientMessage::RemoveWebsite { url: "reddit.com".into() });
+    fn remove_global_website_roundtrip() {
+        roundtrip_client(ClientMessage::RemoveGlobalWebsite { domain: "reddit.com".into() });
     }
 
     #[test]
-    fn list_websites_roundtrip() { roundtrip_client(ClientMessage::ListWebsites); }
+    fn list_global_websites_roundtrip() { roundtrip_client(ClientMessage::ListGlobalWebsites); }
+
+    #[test]
+    fn create_profile_roundtrip() {
+        roundtrip_client(ClientMessage::CreateProfile { name: "Work".into() });
+    }
+
+    #[test]
+    fn list_profiles_roundtrip() { roundtrip_client(ClientMessage::ListProfiles); }
 
     #[test]
     fn pong_roundtrip() { roundtrip_daemon(DaemonMessage::Pong); }
@@ -94,24 +186,39 @@ mod tests {
 
     #[test]
     fn status_with_time_roundtrip() {
-        roundtrip_daemon(DaemonMessage::StatusWithTime { time_left: 10 });
+        roundtrip_daemon(DaemonMessage::StatusWithTime {
+            time_left: 10,
+            sites: vec!["reddit.com".into()],
+        });
     }
 
     #[test]
-    fn status_idle_roundtrip() { roundtrip_daemon(DaemonMessage::StatusIdle); }
+    fn status_idle_roundtrip() {
+        roundtrip_daemon(DaemonMessage::StatusIdle { sites: vec![] });
+    }
 
     #[test]
     fn stopped_roundtrip() { roundtrip_daemon(DaemonMessage::Stopped); }
 
     #[test]
-    fn website_list_roundtrip() {
-        roundtrip_daemon(DaemonMessage::WebsiteList {
-            websites: vec!["reddit.com".into(), "youtube.com".into()],
-        });
+    fn global_website_list_roundtrip() {
+        roundtrip_daemon(DaemonMessage::GlobalWebsiteList(
+            vec!["reddit.com".into(), "youtube.com".into()],
+        ));
     }
 
     #[test]
     fn error_roundtrip() { roundtrip_daemon(DaemonMessage::Error("test".into())); }
+
+    #[test]
+    fn manual_session_none_roundtrip() {
+        roundtrip_daemon(DaemonMessage::ManualSession(None));
+    }
+
+    #[test]
+    fn active_policy_roundtrip() {
+        roundtrip_daemon(DaemonMessage::ActivePolicy(ActivePolicy::default()));
+    }
 
     #[test]
     fn decode_invalid_bytes_returns_error() {
