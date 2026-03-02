@@ -423,6 +423,7 @@ pub struct DaemonActor {
     rx: mpsc::Receiver<Command>,
     cmd_tx: mpsc::Sender<Command>,
     session_tx: broadcast::Sender<Session>,
+    policy_tx: broadcast::Sender<ActivePolicy>,
     config: Config,
     db: DbHandle,
     socket_server: SocketServer,
@@ -437,6 +438,7 @@ impl DaemonActor {
         rx: mpsc::Receiver<Command>,
         cmd_tx: mpsc::Sender<Command>,
         session_tx: broadcast::Sender<Session>,
+        policy_tx: broadcast::Sender<ActivePolicy>,
         config: Config,
     ) -> Result<Self, DaemonError> {
         let socket_server = SocketServer::bind(&config.socket_path).await?;
@@ -447,6 +449,7 @@ impl DaemonActor {
             rx,
             cmd_tx,
             session_tx,
+            policy_tx,
             config,
             db,
             socket_server,
@@ -460,6 +463,10 @@ impl DaemonActor {
     async fn run(mut self) -> Result<(), DaemonError> {
         let _pid_guard = self.lock_pid_file().await?;
         let _ = self.session_tx.send(self.session);
+
+        // Subscribe to our own policy broadcast so we can keep cached_policy
+        // in sync when connection handlers trigger broadcasts.
+        let mut policy_rx = self.policy_tx.subscribe();
 
         // Initial policy load
         if let Ok(policy) = self.get_current_policy().await {
@@ -478,13 +485,19 @@ impl DaemonActor {
                 _ = self.timer.tick() => {
                     self.handle_tick().await;
                 }
+                // Keep cached_policy in sync with broadcasts from connection handlers
+                Ok(policy) = policy_rx.recv() => {
+                    self.cached_policy = policy;
+                }
                 result = self.socket_server.accept_no_timeout(Duration::from_secs(5)) => {
                     match result {
                         Ok(conn) => {
                             let tx = self.cmd_tx.clone();
                             let db = self.db.clone();
+                            let conn_policy_rx = self.policy_tx.subscribe();
+                            let policy_tx = self.policy_tx.clone();
                             tokio::spawn(async move {
-                                if let Err(e) = handle_connection(conn, tx, db).await {
+                                if let Err(e) = handle_connection(conn, tx, db, conn_policy_rx, policy_tx).await {
                                     eprintln!("Connection error: {}", e);
                                 }
                             });
@@ -623,19 +636,22 @@ impl DaemonActor {
             self.last_policy_check = Some(check_key);
 
             if let Ok(new_policy) = self.get_current_policy().await {
-                // Check if blocked websites changed
-                if new_policy.blocked_websites != self.cached_policy.blocked_websites {
+                // Check if policy changed (websites, apps, or DOM rules)
+                if new_policy != self.cached_policy {
                     eprintln!("Scheduled policy changed, updating blocks...");
 
                     // If session is active, update hosts file
                     if self.session.is_active() {
-                        self.cached_policy = new_policy;
+                        self.cached_policy = new_policy.clone();
                         if let Err(e) = self.add_blocks().await {
                             eprintln!("Failed to update blocks: {}", e);
                         }
                     } else {
-                        self.cached_policy = new_policy;
+                        self.cached_policy = new_policy.clone();
                     }
+
+                    // Notify all subscribers
+                    let _ = self.policy_tx.send(new_policy);
                 }
             }
         }
@@ -747,31 +763,156 @@ async fn handle_connection(
     mut conn: Connection,
     tx: mpsc::Sender<Command>,
     db: DbHandle,
+    mut policy_rx: broadcast::Receiver<ActivePolicy>,
+    policy_tx: broadcast::Sender<ActivePolicy>,
 ) -> Result<(), DaemonError> {
-    while let Some(bytes) = conn.recv().await? {
-        let msg: ClientMessage = protocols::decode(&bytes)?;
-        let response = dispatch(msg, &tx, &db).await;
-        conn.send(&protocols::encode(&response)?).await?;
+    let mut subscribed = false;
+
+    loop {
+        if subscribed {
+            // Subscriber mode: forward policy pushes AND handle requests
+            tokio::select! {
+                recv_result = conn.recv() => {
+                    match recv_result? {
+                        Some(bytes) => {
+                            let msg: ClientMessage = protocols::decode(&bytes)?;
+                            let (response, dirty) = dispatch(msg, &tx, &db).await;
+                            conn.send(&protocols::encode(&response)?).await?;
+
+                            // Broadcast to ALL subscribers (including ourselves via policy_rx)
+                            if dirty {
+                                broadcast_policy_change(&db, &policy_tx).await;
+                            }
+                        }
+                        None => break,
+                    }
+                }
+                policy_result = policy_rx.recv() => {
+                    match policy_result {
+                        Ok(policy) => {
+                            let msg = DaemonMessage::PolicyChanged(policy);
+                            if let Err(e) = conn.send(&protocols::encode(&msg)?).await {
+                                eprintln!("Failed to push policy to subscriber: {}", e);
+                                break;
+                            }
+                        }
+                        Err(broadcast::error::RecvError::Lagged(n)) => {
+                            eprintln!("Subscriber lagged by {} messages, continuing", n);
+                        }
+                        Err(broadcast::error::RecvError::Closed) => {
+                            break;
+                        }
+                    }
+                }
+            }
+        } else {
+            // Normal mode: request/response only
+            match conn.recv().await? {
+                Some(bytes) => {
+                    let msg: ClientMessage = protocols::decode(&bytes)?;
+
+                    if matches!(msg, ClientMessage::SubscribePolicyChanges) {
+                        subscribed = true;
+                        // Subscriber connections are long-lived (native host stays
+                        // connected for the lifetime of the extension). Remove the
+                        // short timeout that's appropriate for one-shot CLI requests.
+                        conn.set_timeout(Duration::from_secs(86400));
+                        let ack = DaemonMessage::Subscribed;
+                        conn.send(&protocols::encode(&ack)?).await?;
+                        continue;
+                    }
+
+                    let (response, dirty) = dispatch(msg, &tx, &db).await;
+                    conn.send(&protocols::encode(&response)?).await?;
+
+                    // Even non-subscriber connections (CLI) trigger broadcasts
+                    // so that subscriber connections (native host) get notified
+                    if dirty {
+                        broadcast_policy_change(&db, &policy_tx).await;
+                    }
+                }
+                None => break,
+            }
+        }
     }
+
     Ok(())
+}
+
+/// Re-query the active policy from the DB and broadcast it to all subscribers.
+async fn broadcast_policy_change(
+    db: &DbHandle,
+    policy_tx: &broadcast::Sender<ActivePolicy>,
+) {
+    let now = chrono::Local::now();
+    let day = now.format("%a").to_string().to_lowercase();
+    let time = now.format("%H:%M").to_string();
+
+    match db.get_active_policy(day, time).await {
+        Ok(policy) => {
+            eprintln!("Broadcasting policy change: {} sites, {} rules, {} receivers",
+                policy.blocked_websites.len(),
+                policy.dom_rules.len(),
+                policy_tx.receiver_count(),
+            );
+            match policy_tx.send(policy) {
+                Ok(n) => eprintln!("Policy broadcast sent to {} receivers", n),
+                Err(_) => eprintln!("Policy broadcast failed: no receivers"),
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to query policy for broadcast: {}", e);
+        }
+    }
 }
 
 /// Dispatch a client message to the appropriate handler.
 ///
 /// DB errors are caught and returned as `DaemonMessage::Error` so that a
 /// single bad request doesn't kill the connection.
+///
+/// Returns the response message and whether the policy may have changed
+/// (so the caller can trigger a broadcast).
 async fn dispatch(
     msg: ClientMessage,
     tx: &mpsc::Sender<Command>,
     db: &DbHandle,
-) -> DaemonMessage {
+) -> (DaemonMessage, bool) {
     match dispatch_inner(msg, tx, db).await {
-        Ok(response) => response,
-        Err(e) => DaemonMessage::Error(e.to_string()),
+        Ok((response, dirty)) => (response, dirty),
+        Err(e) => (DaemonMessage::Error(e.to_string()), false),
     }
 }
 
 async fn dispatch_inner(
+    msg: ClientMessage,
+    tx: &mpsc::Sender<Command>,
+    db: &DbHandle,
+) -> Result<(DaemonMessage, bool), DaemonError> {
+    // Determine if this message type mutates policy-relevant data
+    let is_mutation = matches!(
+        msg,
+        ClientMessage::CreateBlockedWebsite { .. }
+            | ClientMessage::DeleteBlockedWebsite { .. }
+            | ClientMessage::CreateBlockedApp { .. }
+            | ClientMessage::DeleteBlockedApp { .. }
+            | ClientMessage::CreateDomRule { .. }
+            | ClientMessage::DeleteDomRule { .. }
+            | ClientMessage::CreateSchedule { .. }
+            | ClientMessage::UpdateSchedule { .. }
+            | ClientMessage::DeleteSchedule { .. }
+            | ClientMessage::UpdateProfile { .. }
+            | ClientMessage::DeleteProfile { .. }
+            | ClientMessage::AddGlobalWebsite { .. }
+            | ClientMessage::RemoveGlobalWebsite { .. }
+    );
+
+    let response = dispatch_message(msg, tx, db).await?;
+    Ok((response, is_mutation))
+}
+
+/// Pure request → response dispatch. No side-effect tracking.
+async fn dispatch_message(
     msg: ClientMessage,
     tx: &mpsc::Sender<Command>,
     db: &DbHandle,
@@ -968,6 +1109,12 @@ async fn dispatch_inner(
             let policy = db.get_active_policy(current_day, current_time).await?;
             Ok(DaemonMessage::ActivePolicy(policy))
         }
+
+        // Subscriptions are handled by handle_connection, not dispatch.
+        // This arm should never be reached.
+        ClientMessage::SubscribePolicyChanges => {
+            Ok(DaemonMessage::Error("SubscribePolicyChanges must be sent before dispatching".into()))
+        }
     }
 }
 
@@ -978,8 +1125,9 @@ async fn dispatch_inner(
 pub async fn run(config: Config) -> Result<DaemonHandle, DaemonError> {
     let (tx, rx) = mpsc::channel(32);
     let (session_tx, _) = broadcast::channel(16);
+    let (policy_tx, _) = broadcast::channel(16);
 
-    let actor = DaemonActor::new(rx, tx.clone(), session_tx.clone(), config).await?;
+    let actor = DaemonActor::new(rx, tx.clone(), session_tx.clone(), policy_tx.clone(), config).await?;
     let handle = DaemonHandle { tx, session_tx };
 
     tokio::spawn(async move {

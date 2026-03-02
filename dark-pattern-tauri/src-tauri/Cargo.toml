@@ -1,0 +1,23 @@
+[package]
+name = "dark-pattern-tauri"
+version = "0.1.0"
+description = "Dark Pattern Blocker Desktop App"
+authors = ["Aaron"]
+license = "MIT"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "1", features = [] }
+
+[dependencies]
+tauri = { version = "1", features = ["shell-open"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = "0.4"
+
+# Your daemon crate (two levels up from src-tauri/) — no gui feature to avoid tauri v2 conflict
+dark_pattern_blocker = { path = "../..", default-features = false }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

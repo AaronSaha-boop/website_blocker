@@ -1,16 +1,76 @@
 use std::path::Path;
 use tokio::net::UnixStream;
 use tokio::time::Duration;
+use crate::protocols::{self, ClientMessage, DaemonMessage, ProtocolError};
 use crate::socket::{Connection, SocketError};
+
+const SOCKET_PATH: &str = "/tmp/dark-pattern.sock";
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Error type (used by the connection-based send_and_receive)
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, thiserror::Error)]
+pub enum ClientError {
+    #[error("Socket error: {0}")]
+    Socket(#[from] SocketError),
+
+    #[error("Protocol error: {0}")]
+    Protocol(#[from] ProtocolError),
+
+    #[error("Connection closed by daemon")]
+    ConnectionClosed,
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Core API
+// ─────────────────────────────────────────────────────────────────────────────
 
 /// Connect to a Unix socket server
 pub async fn connect(path: impl AsRef<Path>, timeout: Duration) -> Result<Connection, SocketError> {
     let path = path.as_ref();
-    
+
     let stream = UnixStream::connect(path).await
         .map_err(|e| SocketError::ConnectionError { source: e })?;
-    
+
     Ok(Connection::new(stream, timeout))
+}
+
+/// Send a message and receive a response over an existing connection.
+/// This is the low-level helper used by both the CLI and the Tauri app.
+pub async fn send_and_receive(
+    conn: &mut Connection,
+    msg: ClientMessage,
+) -> Result<DaemonMessage, ClientError> {
+    let bytes = protocols::encode(&msg)?;
+    conn.send(&bytes).await?;
+
+    let response_bytes = conn
+        .recv()
+        .await?
+        .ok_or(ClientError::ConnectionClosed)?;
+
+    let response = protocols::decode(&response_bytes)?;
+    Ok(response)
+}
+
+/// Convenience wrapper: connect to the daemon, send a message, return the response.
+/// Converts DaemonMessage::Error into Err(String) for easy use in Tauri commands.
+pub async fn send_message(msg: ClientMessage) -> Result<DaemonMessage, String> {
+    let mut conn = connect(SOCKET_PATH, CONNECT_TIMEOUT)
+        .await
+        .map_err(|_| "Failed to connect to daemon. Is it running?".to_string())?;
+
+    let response = send_and_receive(&mut conn, msg)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if let DaemonMessage::Error(ref err) = response {
+        return Err(err.clone());
+    }
+
+    Ok(response)
 }
 
 #[cfg(test)]

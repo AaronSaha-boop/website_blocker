@@ -1,0 +1,4 @@
+hosts_file = "./hosts.txt"
+socket_path = "~/.local/share/dark-pattern/daemon.sock"
+pid_path = "~/.local/share/dark-pattern/daemon.pid"
+db_path = "./dark-pattern.db"

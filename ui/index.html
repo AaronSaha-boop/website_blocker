@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dark Pattern Blocker</title>
+<style>
+/* ── Reset ─────────────────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#1a1a2e;color:#fff;min-height:100vh}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;font-size:inherit}
+input{font-family:inherit;color:#fff;background:#1a1a2e;border:1px solid #3a3a5c;outline:none;font-size:.85rem}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:#1a1a2e}
+::-webkit-scrollbar-thumb{background:#3a3a5c;border-radius:3px}
+a{color:#6366f1;text-decoration:none}
+
+/* ── Container ─────────────────────────────────────────────── */
+.container{max-width:1200px;margin:0 auto;padding:32px 24px}
+
+/* ── Header ────────────────────────────────────────────────── */
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.header h1{font-size:.9rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.icon-btn{width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;background:#6366f1;color:#fff;font-size:1.2rem;line-height:1}
+
+/* ── Session bar ───────────────────────────────────────────── */
+.session-bar{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:12px;margin-bottom:6px;background:#252542;border-left:4px solid #22c55e}
+.session-bar.active{border-left-color:#f87171}
+.badge{display:inline-block;padding:2px 10px;border-radius:10px;font-size:.7rem;font-weight:700;letter-spacing:.02em}
+.badge-idle{background:rgba(34,197,94,.12);color:#22c55e}
+.badge-active{background:rgba(248,113,113,.12);color:#f87171}
+.session-time{font-size:.9rem;font-weight:700;flex:1}
+.session-bar input{height:30px;padding:0 10px;border-radius:6px;width:130px}
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:0 14px;height:30px;border-radius:6px;font-size:.8rem;font-weight:500;white-space:nowrap}
+.btn-accent{background:#6366f1;color:#fff}
+.btn-accent:hover{background:#5558e6}
+.btn-red{background:#dc2626;color:#fff}
+.btn-red:hover{background:#c42020}
+.btn-outline{background:#1a1a2e;border:1px solid #3a3a5c;color:#fff}
+.btn-outline:hover{background:#22223a}
+.hidden{display:none!important}
+.err{color:#f87171;font-size:.78rem;min-height:1.1em;margin:4px 0}
+
+/* ── Block card ────────────────────────────────────────────── */
+.block-card{background:#252542;border-radius:12px;border-left:4px solid #6366f1;padding:16px 20px;margin-bottom:10px;cursor:pointer;transition:background .15s}
+.block-card:hover{background:#2c2c52}
+.block-card .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.block-card .name{font-size:1rem;font-weight:500}
+.block-card .bottom{display:flex;align-items:center;font-size:.78rem;color:rgba(255,255,255,.4)}
+.block-card .bottom .flex1{flex:1}
+.block-card .bottom .del{color:rgba(248,113,113,.5);transition:color .15s}
+.block-card .bottom .del:hover{color:#f87171}
+.block-card.global{border-left-color:#22c55e;cursor:pointer}
+.block-card .always{font-size:.75rem;color:#22c55e;font-weight:600}
+
+/* ── Toggle switch ─────────────────────────────────────────── */
+.toggle{position:relative;width:48px;height:26px;border-radius:13px;background:#3a3a5c;transition:background .2s;flex-shrink:0;cursor:pointer}
+.toggle.on{background:#6366f1}
+.toggle .knob{position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;background:#fff;transition:left .2s}
+.toggle.on .knob{left:24px}
+.toggle-row{display:flex;align-items:center;gap:8px}
+.toggle-label{font-size:.8rem;color:rgba(255,255,255,.45)}
+
+.toggle-sm{position:relative;width:36px;height:20px;border-radius:10px;background:#3a3a5c;cursor:pointer;transition:background .2s;flex-shrink:0}
+.toggle-sm.on{background:#6366f1}
+.toggle-sm .knob{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s}
+.toggle-sm.on .knob{left:18px}
+
+/* ── New-block button ──────────────────────────────────────── */
+.btn-new{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:8px;background:#6366f1;color:#fff;font-size:.85rem;font-weight:500;margin-top:16px}
+.btn-new:hover{background:#5558e6}
+
+/* ── Modal overlay ─────────────────────────────────────────── */
+.overlay{display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.55);align-items:center;justify-content:center}
+.overlay.open{display:flex}
+
+/* ── Modal box ─────────────────────────────────────────────── */
+.modal{width:calc(100% - 40px);border-radius:14px;padding:24px;background:#252542;border:1px solid #3a3a5c;display:flex;flex-direction:column;gap:16px}
+.modal.sm{max-width:400px}
+.modal.md{max-width:560px}
+.modal.lg{max-width:720px;max-height:88vh;overflow-y:auto}
+.modal h2{text-align:center;font-size:.9rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.divider{height:1px;background:#3a3a5c}
+.modal-footer{display:flex;align-items:center;justify-content:center;gap:10px}
+
+/* ── Input row ─────────────────────────────────────────────── */
+.input-row{display:flex;gap:10px;align-items:center}
+.input-row input{flex:1;height:38px;padding:0 14px;border-radius:6px}
+.input-row .btn{height:38px}
+
+/* ── List area ─────────────────────────────────────────────── */
+.list-area{background:#1a1a2e;border:1px solid #3a3a5c;border-radius:8px;min-height:100px;max-height:260px;overflow-y:auto;padding:8px}
+.list-entry{display:flex;align-items:center;justify-content:space-between;padding:7px 12px;border-radius:6px;margin-bottom:4px;background:#252542;font-size:.82rem;color:rgba(255,255,255,.8)}
+.list-entry:last-child{margin-bottom:0}
+.list-entry .x{color:#f87171;font-size:1.1rem;line-height:1;cursor:pointer;background:none;border:none;padding:0 4px}
+.list-entry .x:hover{color:#ff9999}
+.list-empty{display:flex;align-items:center;justify-content:center;height:80px;color:rgba(255,255,255,.2);font-size:.82rem}
+
+/* ── Tabs ──────────────────────────────────────────────────── */
+.tabs{display:flex;gap:24px}
+.tab-btn{padding-bottom:8px;font-size:.85rem;color:rgba(255,255,255,.4);position:relative;background:none;border:none}
+.tab-btn.active{color:#fff}
+.tab-btn.active::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:#6366f1;border-radius:1px}
+.tab-pane{display:none}
+.tab-pane.active{display:block}
+
+/* ── DOM sites ─────────────────────────────────────────────── */
+.dom-sites{display:flex;flex-direction:column;gap:6px;max-height:380px;overflow-y:auto;padding-right:4px}
+.dom-site{background:#1a1a2e;border:1px solid #3a3a5c;border-radius:8px;overflow:hidden}
+.dom-hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;user-select:none}
+.dom-hdr:hover{background:rgba(255,255,255,.02)}
+.dom-hdr .site-name{font-size:.85rem;font-weight:600;text-transform:capitalize}
+.dom-hdr .chevron{font-size:.65rem;color:rgba(255,255,255,.3);transition:transform .2s}
+.dom-body{display:none;padding:4px 14px 12px;border-top:1px solid #2a2a48}
+.dom-site.expanded .dom-body{display:block}
+.dom-site.expanded .chevron{transform:rotate(180deg)}
+.dom-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0}
+.dom-row-label{font-size:.78rem;color:rgba(255,255,255,.6)}
+
+/* ── Schedule ──────────────────────────────────────────────── */
+.sched-list{display:flex;flex-direction:column;gap:4px}
+.sched-entry{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;background:#1a1a2e;border-radius:6px;font-size:.78rem;color:rgba(255,255,255,.6)}
+.sched-form{display:flex;flex-direction:column;gap:12px;padding:12px;background:#1a1a2e;border:1px solid #3a3a5c;border-radius:8px}
+.day-chips{display:flex;gap:6px;flex-wrap:wrap}
+.day-chip{padding:4px 12px;border-radius:6px;font-size:.75rem;border:1px solid #3a3a5c;background:transparent;color:rgba(255,255,255,.5);cursor:pointer;transition:all .15s}
+.day-chip.sel{background:#6366f1;border-color:#6366f1;color:#fff}
+.time-row{display:flex;gap:10px;align-items:center;font-size:.82rem;color:rgba(255,255,255,.5)}
+.time-row input{width:100px;height:30px;padding:0 8px;border-radius:6px;text-align:center;background:#252542;border:1px solid #3a3a5c;color:#fff}
+.muted{color:rgba(255,255,255,.3);font-size:.78rem}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <h1>Website &amp; App Blocks</h1>
+    <button class="icon-btn" id="btn-new-block-hdr" title="New block">+</button>
+  </div>
+
+  <!-- Session bar -->
+  <div class="session-bar" id="session-bar">
+    <span class="badge badge-idle" id="session-badge">IDLE</span>
+    <span class="session-time" id="session-time"></span>
+    <input id="duration-input" placeholder="e.g. 25m, 1h30m" />
+    <button class="btn btn-accent" id="btn-start">Start</button>
+    <button class="btn btn-red hidden" id="btn-stop">Stop</button>
+  </div>
+  <div class="err" id="session-err"></div>
+
+  <!-- Global blocklist card -->
+  <div class="block-card global" id="global-card">
+    <div class="top">
+      <span class="name">Global Blocklist</span>
+      <span class="always">Always on</span>
+    </div>
+    <div class="bottom">
+      <span class="flex1" id="global-summary">Loading...</span>
+    </div>
+  </div>
+
+  <!-- Profile block cards -->
+  <div id="blocks-container"></div>
+
+  <!-- New block button -->
+  <button class="btn-new" id="btn-new-block"><span style="font-size:1.1rem;line-height:1">+</span> New block...</button>
+</div>
+
+<!-- ═══ GLOBAL BLOCKLIST MODAL ═══════════════════════════════ -->
+<div class="overlay" id="global-modal">
+  <div class="modal md" onclick="event.stopPropagation()">
+    <h2>Global Blocklist</h2>
+    <div class="divider"></div>
+    <div class="input-row">
+      <input id="global-domain-input" placeholder="Enter domain, e.g. reddit.com" />
+      <button class="btn btn-accent" id="btn-add-global">+ Add</button>
+    </div>
+    <div class="err" id="global-err"></div>
+    <div class="list-area" id="global-list"></div>
+    <div class="divider"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="btn-close-global">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ BLOCK DETAIL MODAL ═══════════════════════════════════ -->
+<div class="overlay" id="block-modal">
+  <div class="modal lg" onclick="event.stopPropagation()">
+    <h2 id="block-modal-title">Block</h2>
+    <div class="divider"></div>
+    <div class="tabs" id="block-tabs">
+      <button class="tab-btn active" data-tab="websites">Websites</button>
+      <button class="tab-btn" data-tab="dom">DOM</button>
+      <button class="tab-btn" data-tab="apps">Apps</button>
+    </div>
+
+    <!-- Websites tab -->
+    <div class="tab-pane active" id="tab-websites">
+      <div class="input-row" style="margin-bottom:6px">
+        <input id="bw-domain-input" placeholder="Enter domain..." />
+        <button class="btn btn-accent" id="btn-add-bw">+ Add</button>
+      </div>
+      <div class="err" id="bw-err"></div>
+      <div class="list-area" id="bw-list"></div>
+    </div>
+
+    <!-- DOM tab -->
+    <div class="tab-pane" id="tab-dom">
+      <div class="dom-sites" id="dom-sites"></div>
+      <div class="err" id="dom-err"></div>
+    </div>
+
+    <!-- Apps tab -->
+    <div class="tab-pane" id="tab-apps">
+      <div class="input-row" style="margin-bottom:6px">
+        <input id="ba-id-input" placeholder="App identifier..." />
+        <button class="btn btn-accent" id="btn-add-ba">+ Add</button>
+      </div>
+      <div class="err" id="ba-err"></div>
+      <div class="list-area" id="ba-list"></div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="btn-close-block">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SCHEDULE MODAL ═══════════════════════════════════════ -->
+<div class="overlay" id="schedule-modal">
+  <div class="modal md" onclick="event.stopPropagation()">
+    <h2 id="sched-title">Schedule</h2>
+    <div class="divider"></div>
+    <div class="sched-list" id="sched-list"></div>
+    <p class="muted">Add new schedule</p>
+    <div class="sched-form">
+      <div class="day-chips" id="sched-days"></div>
+      <div class="time-row">
+        <span>From</span>
+        <input type="time" id="sched-start" value="09:00" />
+        <span>to</span>
+        <input type="time" id="sched-end" value="17:00" />
+      </div>
+      <button class="btn btn-accent" id="btn-add-sched" style="align-self:flex-start">Add schedule</button>
+    </div>
+    <div class="err" id="sched-err"></div>
+    <div class="divider"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="btn-close-sched">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ NEW PROFILE DIALOG ═══════════════════════════════════ -->
+<div class="overlay" id="new-profile-modal">
+  <div class="modal sm" onclick="event.stopPropagation()">
+    <h2>Create new block</h2>
+    <input id="new-profile-name" placeholder="Block name..." style="height:38px;padding:0 14px;border-radius:8px;width:100%" />
+    <div class="err" id="new-profile-err"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="btn-cancel-profile">Cancel</button>
+      <button class="btn btn-accent" id="btn-save-profile">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<script>
+// ── Tauri check ────────────────────────────────────────────────
+if (!window.__TAURI__) {
+  document.body.innerHTML = '<div style="padding:40px;color:#f87171;font-size:1.1rem">window.__TAURI__ not available.<br>Rebuild with <code>withGlobalTauri: true</code> in tauri.conf.json.</div>';
+  throw new Error('No Tauri');
+}
+const { invoke } = window.__TAURI__.core;
+
+// ── Helpers ────────────────────────────────────────────────────
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+function camelToWords(s) {
+  return s.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()).trim();
+}
+
+// ── DEFAULT_SITE_CONFIGS ───────────────────────────────────────
+const DEFAULT_SITE_CONFIGS = {
+  instagram: { enabled:true, hideReels:false, hideExplore:false, hideStories:false, hideSuggested:false, hideVanityMetrics:false, grayscale:false, hideFeed:false },
+  youtube:   { enabled:true, hideShorts:false, hideHomeFeed:false, hideRecommendations:false, disableAutoplay:false, hideComments:false, hideEndCards:false, grayscale:false },
+  twitter:   { enabled:true, hideForYou:false, hideTrends:false, hideWhoToFollow:false, hidePromoted:false },
+  reddit:    { enabled:true, hideHomeFeed:false, hideGallery:false, hideSubredditFeed:false, hideCommunityHighlights:false, hideLeftSidebar:false, hidePopular:false, hideExplore:false, hideAll:false, hideGames:false, hideCustomFeeds:false, hideRecentSubreddits:false, hideCommunities:false, hideRightSidebar:false, hideRecentPosts:false, hideSubredditInfo:false, hidePopularCommunities:false, hideComments:false, hideUpvotes:false, hideUpvoteCount:false, hideSearch:false, hideTrending:false, hideNotifications:false },
+  facebook:  { enabled:true, hideReels:false, hideStories:false, hideSuggested:false, hideMarketplace:false, hideWatch:false, hideSponsored:false, hideGaming:false, hideNotifications:false, hideMessengerBtn:false, hideGroupsBtn:false, hideMetaAI:false, hideNewsfeed:false },
+  linkedin:  { enabled:true, hideFeed:false, hideNotificationBadge:false, hidePeopleYouMayKnow:false, hidePromoted:false },
+  netflix:   { enabled:true, disableAutoplayPreviews:false, hideMoreLikeThis:false, hideContinueWatching:false }
+};
+
+// ── State ──────────────────────────────────────────────────────
+let profiles = [];
+let currentProfileId = null;
+let currentDomRules = [];
+let scheduleProfileId = null;
+
+// ═══════════════════════════════════════════════════════════════
+// MODAL HELPERS
+// ═══════════════════════════════════════════════════════════════
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+$$('.overlay').forEach(ov => {
+  ov.addEventListener('click', e => { if (e.target === ov) ov.classList.remove('open'); });
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') $$('.overlay.open').forEach(ov => ov.classList.remove('open'));
+});
+
+// ═══════════════════════════════════════════════════════════════
+// SESSION
+// ═══════════════════════════════════════════════════════════════
+async function refreshStatus() {
+  try {
+    const s = await invoke('get_status');
+    const bar = $('#session-bar');
+    const badge = $('#session-badge');
+    if (s.active) {
+      bar.classList.add('active');
+      badge.className = 'badge badge-active';
+      badge.textContent = 'ACTIVE';
+      $('#session-time').textContent = s.formatted + ' remaining';
+      $('#btn-start').classList.add('hidden');
+      $('#btn-stop').classList.remove('hidden');
+    } else {
+      bar.classList.remove('active');
+      badge.className = 'badge badge-idle';
+      badge.textContent = 'IDLE';
+      $('#session-time').textContent = '';
+      $('#btn-start').classList.remove('hidden');
+      $('#btn-stop').classList.add('hidden');
+    }
+  } catch (e) { $('#session-err').textContent = e; }
+}
+$('#btn-start').onclick = async () => {
+  $('#session-err').textContent = '';
+  const dur = $('#duration-input').value.trim();
+  if (!dur) { $('#session-err').textContent = 'Enter a duration'; return; }
+  try { await invoke('start_session', { duration: dur }); $('#duration-input').value = ''; refreshStatus(); }
+  catch (e) { $('#session-err').textContent = e; }
+};
+$('#btn-stop').onclick = async () => {
+  $('#session-err').textContent = '';
+  try { await invoke('stop_session'); refreshStatus(); }
+  catch (e) { $('#session-err').textContent = e; }
+};
+
+// ═══════════════════════════════════════════════════════════════
+// GLOBAL BLOCKLIST
+// ═══════════════════════════════════════════════════════════════
+async function refreshGlobal() {
+  try {
+    const sites = await invoke('list_global_websites');
+    $('#global-summary').textContent = sites.length ? sites.join(', ') : 'No sites blocked globally';
+    const el = $('#global-list');
+    if (!sites.length) { el.innerHTML = '<div class="list-empty">No entries yet</div>'; return; }
+    el.innerHTML = sites.map(s =>
+      `<div class="list-entry"><span>${s}</span><button class="x" data-d="${s}">&times;</button></div>`
+    ).join('');
+    el.querySelectorAll('.x').forEach(b => {
+      b.onclick = async () => {
+        try { await invoke('remove_global_website', { domain: b.dataset.d }); refreshGlobal(); }
+        catch (e) { $('#global-err').textContent = e; }
+      };
+    });
+  } catch (e) { $('#global-err').textContent = e; }
+}
+$('#global-card').onclick = () => openModal('global-modal');
+$('#btn-add-global').onclick = async () => {
+  $('#global-err').textContent = '';
+  const d = $('#global-domain-input').value.trim();
+  if (!d) return;
+  try { await invoke('add_global_website', { domain: d }); $('#global-domain-input').value = ''; refreshGlobal(); }
+  catch (e) { $('#global-err').textContent = e; }
+};
+$('#global-domain-input').onkeydown = e => { if (e.key === 'Enter') $('#btn-add-global').click(); };
+$('#btn-close-global').onclick = () => closeModal('global-modal');
+
+// ═══════════════════════════════════════════════════════════════
+// PROFILES
+// ═══════════════════════════════════════════════════════════════
+async function refreshProfiles() {
+  try { profiles = await invoke('list_profiles'); renderBlockCards(); }
+  catch (e) { console.error(e); }
+}
+
+function renderBlockCards() {
+  const el = $('#blocks-container');
+  if (!profiles.length) {
+    el.innerHTML = '<div class="muted" style="padding:20px 0">No blocks yet. Click "New block..." to create one.</div>';
+    return;
+  }
+  el.innerHTML = profiles.map(p => `
+    <div class="block-card" data-id="${p.id}">
+      <div class="top">
+        <span class="name">${p.name}</span>
+        <div class="toggle-row">
+          <div class="toggle ${p.enabled ? 'on' : ''}" data-toggle-id="${p.id}"><div class="knob"></div></div>
+          <span class="toggle-label">${p.enabled ? 'On' : 'Off'}</span>
+        </div>
+      </div>
+      <div class="bottom">
+        <span class="flex1 sched-link" data-sched-id="${p.id}" style="cursor:pointer">Manage schedules</span>
+        <button class="del" data-del-id="${p.id}">Delete</button>
+      </div>
+    </div>
+  `).join('');
+
+  el.querySelectorAll('.block-card').forEach(card => {
+    card.onclick = e => {
+      if (e.target.closest('.toggle') || e.target.closest('.sched-link') || e.target.closest('.del')) return;
+      openBlockModal(card.dataset.id);
+    };
+  });
+  el.querySelectorAll('.sched-link').forEach(link => {
+    link.onclick = e => { e.stopPropagation(); openScheduleModal(link.dataset.schedId); };
+  });
+  el.querySelectorAll('.del').forEach(btn => {
+    btn.onclick = async e => {
+      e.stopPropagation();
+      try { await invoke('delete_profile', { id: btn.dataset.delId }); refreshProfiles(); }
+      catch (err) { console.error(err); }
+    };
+  });
+  el.querySelectorAll('.toggle').forEach(tog => {
+    tog.onclick = e => {
+      e.stopPropagation();
+      tog.classList.toggle('on');
+      tog.parentElement.querySelector('.toggle-label').textContent = tog.classList.contains('on') ? 'On' : 'Off';
+    };
+  });
+}
+
+$('#btn-new-block').onclick = () => openModal('new-profile-modal');
+$('#btn-new-block-hdr').onclick = () => openModal('new-profile-modal');
+$('#btn-cancel-profile').onclick = () => { closeModal('new-profile-modal'); $('#new-profile-name').value = ''; };
+$('#btn-save-profile').onclick = async () => {
+  $('#new-profile-err').textContent = '';
+  const name = $('#new-profile-name').value.trim();
+  if (!name) { $('#new-profile-err').textContent = 'Enter a name'; return; }
+  try { await invoke('create_profile', { name }); $('#new-profile-name').value = ''; closeModal('new-profile-modal'); refreshProfiles(); }
+  catch (e) { $('#new-profile-err').textContent = e; }
+};
+$('#new-profile-name').onkeydown = e => { if (e.key === 'Enter') $('#btn-save-profile').click(); };
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCK DETAIL MODAL  (tabs: Websites / DOM / Apps)
+// ═══════════════════════════════════════════════════════════════
+$$('#block-tabs .tab-btn').forEach(tab => {
+  tab.onclick = () => {
+    $$('#block-tabs .tab-btn').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    $$('#block-modal .tab-pane').forEach(p => p.classList.remove('active'));
+    $('#tab-' + tab.dataset.tab).classList.add('active');
+  };
+});
+
+async function openBlockModal(profileId) {
+  currentProfileId = profileId;
+  const p = profiles.find(x => x.id === profileId);
+  $('#block-modal-title').textContent = p ? p.name : 'Block';
+  $$('#block-tabs .tab-btn').forEach((t, i) => t.classList.toggle('active', i === 0));
+  $$('#block-modal .tab-pane').forEach((p, i) => p.classList.toggle('active', i === 0));
+  openModal('block-modal');
+  refreshBlockedWebsites();
+  refreshDomRules();
+  refreshBlockedApps();
+}
+$('#btn-close-block').onclick = () => { closeModal('block-modal'); currentProfileId = null; };
+
+// ── Blocked websites ───────────────────────────────────────────
+async function refreshBlockedWebsites() {
+  if (!currentProfileId) return;
+  try {
+    const list = await invoke('list_blocked_websites', { profileId: currentProfileId });
+    const el = $('#bw-list');
+    if (!list.length) { el.innerHTML = '<div class="list-empty">No blocked websites</div>'; return; }
+    el.innerHTML = list.map(w =>
+      `<div class="list-entry"><span>${w.domain}</span><button class="x" data-id="${w.id}">&times;</button></div>`
+    ).join('');
+    el.querySelectorAll('.x').forEach(b => {
+      b.onclick = async () => {
+        try { await invoke('delete_blocked_website', { id: parseInt(b.dataset.id) }); refreshBlockedWebsites(); }
+        catch (e) { $('#bw-err').textContent = e; }
+      };
+    });
+  } catch (e) { $('#bw-err').textContent = e; }
+}
+$('#btn-add-bw').onclick = async () => {
+  $('#bw-err').textContent = '';
+  const d = $('#bw-domain-input').value.trim();
+  if (!d || !currentProfileId) return;
+  try { await invoke('add_blocked_website', { profileId: currentProfileId, domain: d }); $('#bw-domain-input').value = ''; refreshBlockedWebsites(); }
+  catch (e) { $('#bw-err').textContent = e; }
+};
+$('#bw-domain-input').onkeydown = e => { if (e.key === 'Enter') $('#btn-add-bw').click(); };
+
+// ── Blocked apps ───────────────────────────────────────────────
+async function refreshBlockedApps() {
+  if (!currentProfileId) return;
+  try {
+    const list = await invoke('list_blocked_apps', { profileId: currentProfileId });
+    const el = $('#ba-list');
+    if (!list.length) { el.innerHTML = '<div class="list-empty">No blocked apps</div>'; return; }
+    el.innerHTML = list.map(a =>
+      `<div class="list-entry"><span>${a.app_identifier}</span><button class="x" data-id="${a.id}">&times;</button></div>`
+    ).join('');
+    el.querySelectorAll('.x').forEach(b => {
+      b.onclick = async () => {
+        try { await invoke('delete_blocked_app', { id: parseInt(b.dataset.id) }); refreshBlockedApps(); }
+        catch (e) { $('#ba-err').textContent = e; }
+      };
+    });
+  } catch (e) { $('#ba-err').textContent = e; }
+}
+$('#btn-add-ba').onclick = async () => {
+  $('#ba-err').textContent = '';
+  const id = $('#ba-id-input').value.trim();
+  if (!id || !currentProfileId) return;
+  try { await invoke('add_blocked_app', { profileId: currentProfileId, appIdentifier: id }); $('#ba-id-input').value = ''; refreshBlockedApps(); }
+  catch (e) { $('#ba-err').textContent = e; }
+};
+$('#ba-id-input').onkeydown = e => { if (e.key === 'Enter') $('#btn-add-ba').click(); };
+
+// ═══════════════════════════════════════════════════════════════
+// DOM RULES TAB
+// ═══════════════════════════════════════════════════════════════
+async function refreshDomRules() {
+  if (!currentProfileId) return;
+  try { currentDomRules = await invoke('list_dom_rules', { profileId: currentProfileId }); renderDomSites(); }
+  catch (e) { $('#dom-err').textContent = e; }
+}
+
+function domRuleLookup() {
+  const map = {};
+  for (const r of currentDomRules) {
+    if (!map[r.site]) map[r.site] = {};
+    map[r.site][r.toggle] = r.id;
+  }
+  return map;
+}
+
+function renderDomSites() {
+  const lookup = domRuleLookup();
+  const container = $('#dom-sites');
+  container.innerHTML = '';
+
+  for (const [site, toggles] of Object.entries(DEFAULT_SITE_CONFIGS)) {
+    const siteRules = lookup[site] || {};
+    const keys = Object.keys(toggles);
+
+    const div = document.createElement('div');
+    div.className = 'dom-site';
+    div.innerHTML = `
+      <div class="dom-hdr">
+        <span class="site-name">${site}</span>
+        <span class="chevron">&#9660;</span>
+      </div>
+      <div class="dom-body">
+        ${keys.map(key => {
+          const isOn = key in siteRules;
+          const ruleId = siteRules[key] || '';
+          return `<div class="dom-row">
+            <span class="dom-row-label">${camelToWords(key)}</span>
+            <div class="toggle-sm ${isOn ? 'on' : ''}" data-site="${site}" data-key="${key}" data-rule-id="${ruleId}"><div class="knob"></div></div>
+          </div>`;
+        }).join('')}
+      </div>
+    `;
+    container.appendChild(div);
+
+    div.querySelector('.dom-hdr').onclick = () => div.classList.toggle('expanded');
+
+    div.querySelectorAll('.toggle-sm').forEach(tog => {
+      tog.onclick = async () => {
+        const s = tog.dataset.site;
+        const k = tog.dataset.key;
+        const rid = tog.dataset.ruleId;
+        try {
+          if (tog.classList.contains('on')) {
+            if (rid) await invoke('delete_dom_rule', { id: parseInt(rid) });
+          } else {
+            await invoke('add_dom_rule', { profileId: currentProfileId, site: s, toggle: k });
+          }
+          await refreshDomRules();
+        } catch (e) { $('#dom-err').textContent = e; }
+      };
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SCHEDULE MODAL
+// ═══════════════════════════════════════════════════════════════
+const dayNames = ['sun','mon','tue','wed','thu','fri','sat'];
+let selectedDays = new Set();
+
+(function initDays() {
+  const el = $('#sched-days');
+  el.innerHTML = dayNames.map(d =>
+    `<button class="day-chip" data-day="${d}">${d.toUpperCase()}</button>`
+  ).join('');
+  el.querySelectorAll('.day-chip').forEach(chip => {
+    chip.onclick = () => {
+      const d = chip.dataset.day;
+      if (selectedDays.has(d)) { selectedDays.delete(d); chip.classList.remove('sel'); }
+      else { selectedDays.add(d); chip.classList.add('sel'); }
+    };
+  });
+})();
+
+async function openScheduleModal(profileId) {
+  scheduleProfileId = profileId;
+  const p = profiles.find(x => x.id === profileId);
+  $('#sched-title').textContent = p ? 'Schedule: ' + p.name : 'Schedule';
+  selectedDays.clear();
+  $$('#sched-days .day-chip').forEach(c => c.classList.remove('sel'));
+  openModal('schedule-modal');
+  refreshSchedules();
+}
+
+async function refreshSchedules() {
+  if (!scheduleProfileId) return;
+  try {
+    const list = await invoke('list_schedules', { profileId: scheduleProfileId });
+    const el = $('#sched-list');
+    if (!list.length) { el.innerHTML = '<div class="muted" style="padding:4px 0">No schedules</div>'; return; }
+    el.innerHTML = list.map(s =>
+      `<div class="sched-entry">
+        <span>${(s.days||[]).map(d=>d.toUpperCase()).join(', ')}  ${s.start_time||''} - ${s.end_time||''}</span>
+        <button class="x" data-id="${s.id}">&times;</button>
+      </div>`
+    ).join('');
+    el.querySelectorAll('.x').forEach(b => {
+      b.onclick = async () => {
+        try { await invoke('delete_schedule', { id: parseInt(b.dataset.id) }); refreshSchedules(); }
+        catch (e) { $('#sched-err').textContent = e; }
+      };
+    });
+  } catch (e) { $('#sched-err').textContent = e; }
+}
+
+$('#btn-add-sched').onclick = async () => {
+  $('#sched-err').textContent = '';
+  if (!scheduleProfileId || !selectedDays.size) { $('#sched-err').textContent = 'Select at least one day'; return; }
+  const start = $('#sched-start').value;
+  const end = $('#sched-end').value;
+  if (!start || !end) { $('#sched-err').textContent = 'Set start and end times'; return; }
+  try {
+    await invoke('create_schedule', { profileId: scheduleProfileId, days: [...selectedDays].join(','), startTime: start, endTime: end });
+    selectedDays.clear();
+    $$('#sched-days .day-chip').forEach(c => c.classList.remove('sel'));
+    refreshSchedules();
+  } catch (e) { $('#sched-err').textContent = e; }
+};
+$('#btn-close-sched').onclick = () => { closeModal('schedule-modal'); scheduleProfileId = null; };
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+refreshStatus();
+refreshGlobal();
+refreshProfiles();
+setInterval(refreshStatus, 5000);
+</script>
+</body>
+</html>

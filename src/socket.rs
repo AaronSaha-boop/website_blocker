@@ -43,6 +43,12 @@ impl Connection {
         }
     }
 
+    /// Update the read/write timeout for this connection.
+    /// Use a large value for long-lived subscriber connections.
+    pub fn set_timeout(&mut self, timeout: Duration) {
+        self.timeout = timeout;
+    }
+
     pub async fn send(&mut self, data: &[u8]) -> Result<(), SocketError> {
         timeout(self.timeout, self.framed.send(Bytes::copy_from_slice(data)))
             .await

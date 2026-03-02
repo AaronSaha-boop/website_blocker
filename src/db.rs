@@ -1146,13 +1146,14 @@ fn db_thread(conn: Connection, mut rx: mpsc::Receiver<DbCommand>) {
                 let result = (|| -> Result<Vec<Profile>, DbError> {
                     let pattern = format!("%\"{}%", current_day);
                     let mut stmt = conn.prepare(
-                        "SELECT DISTINCT p.id, p.name, p.enabled 
+                        "SELECT DISTINCT p.id, p.name, p.enabled
                          FROM profiles p
-                         JOIN schedules s ON s.profile_id = p.id
+                         LEFT JOIN schedules s ON s.profile_id = p.id
                          WHERE p.enabled = 1
-                           AND s.days LIKE ?1
-                           AND s.start_time <= ?2
-                           AND s.end_time > ?2",
+                           AND (s.id IS NULL
+                                OR (s.days LIKE ?1
+                                    AND s.start_time <= ?2
+                                    AND s.end_time > ?2))",
                     )?;
                     let profiles = stmt
                         .query_map(params![pattern, &current_time], |row| {
@@ -1176,16 +1177,17 @@ fn db_thread(conn: Connection, mut rx: mpsc::Receiver<DbCommand>) {
                 let result = (|| -> Result<ActivePolicy, DbError> {
                     let mut policy = ActivePolicy::default();
 
-                    // Get active profiles
+                    // Get active profiles (enabled + matching schedule, or enabled + no schedule = always on)
                     let pattern = format!("%\"{}%", current_day);
                     let mut profile_stmt = conn.prepare(
                         "SELECT DISTINCT p.id
                          FROM profiles p
-                         JOIN schedules s ON s.profile_id = p.id
+                         LEFT JOIN schedules s ON s.profile_id = p.id
                          WHERE p.enabled = 1
-                           AND s.days LIKE ?1
-                           AND s.start_time <= ?2
-                           AND s.end_time > ?2",
+                           AND (s.id IS NULL
+                                OR (s.days LIKE ?1
+                                    AND s.start_time <= ?2
+                                    AND s.end_time > ?2))",
                     )?;
                     let profile_ids: Vec<String> = profile_stmt
                         .query_map(params![pattern, &current_time], |row| row.get(0))?

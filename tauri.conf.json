@@ -1,0 +1,21 @@
+{
+  "productName": "Dark Pattern Blocker",
+  "version": "0.1.0",
+  "identifier": "com.dark-pattern-blocker.app",
+  "build": {
+    "frontendDist": "./ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "Dark Pattern Blocker",
+        "width": 860,
+        "height": 640
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' 'unsafe-inline' 'unsafe-eval'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost"
+    }
+  }
+}

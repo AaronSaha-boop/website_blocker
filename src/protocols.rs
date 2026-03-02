@@ -67,6 +67,9 @@ pub enum ClientMessage {
 
     // Active Policy
     GetActivePolicy { current_day: String, current_time: String },
+
+    // Subscriptions
+    SubscribePolicyChanges,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -117,6 +120,10 @@ pub enum DaemonMessage {
 
     // Active Policy
     ActivePolicy(ActivePolicy),
+
+    // Push notifications (daemon -> subscriber)
+    PolicyChanged(ActivePolicy),
+    Subscribed,
 }
 
 pub fn encode<T: Serialize>(msg: &T) -> Result<Vec<u8>, ProtocolError> {
@@ -224,5 +231,20 @@ mod tests {
     fn decode_invalid_bytes_returns_error() {
         let result = decode::<DaemonMessage>(&[0x80, 0x01, 0x02]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn subscribe_policy_changes_roundtrip() {
+        roundtrip_client(ClientMessage::SubscribePolicyChanges);
+    }
+
+    #[test]
+    fn policy_changed_roundtrip() {
+        roundtrip_daemon(DaemonMessage::PolicyChanged(ActivePolicy::default()));
+    }
+
+    #[test]
+    fn subscribed_roundtrip() {
+        roundtrip_daemon(DaemonMessage::Subscribed);
     }
 }
