@@ -1,191 +1,121 @@
 // src/session.rs
 
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, Instant};
 
-/// A session that is not currently blocking
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct IdleSession;
+// ─────────────────────────────────────────────────────────────────────────────
+// Session (enum over typestates)
+// ─────────────────────────────────────────────────────────────────────────────
 
-/// A session that is actively blocking
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ActiveSession {
-    started_at: Instant,
-    duration: Duration,
-    wall_started_at: SystemTime,
-}
-
-/// Wrapper enum for holding either session state
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 pub enum Session {
     Idle(IdleSession),
     Active(ActiveSession),
 }
 
-impl IdleSession {
-    pub fn new() -> Self {
-        IdleSession
+impl Session {
+    pub fn is_active(&self) -> bool {
+        matches!(self, Session::Active(_))
     }
 
-    /// Start blocking — consumes self, returns ActiveSession
-    pub fn start(self, duration: Duration) -> ActiveSession {
-        ActiveSession { 
-            started_at: Instant::now(), 
-            duration, 
-            wall_started_at: SystemTime::now(),
+    pub fn remaining(&self) -> Duration {
+        match self {
+            Session::Active(a) => a.remaining(),
+            Session::Idle(_) => Duration::ZERO,
         }
     }
 }
 
-impl ActiveSession {
-    #[cfg(test)]
-    pub fn new_for_test(duration: Duration) -> Self {
-        Self {
-            started_at: Instant::now(),
-            duration,
-            wall_started_at: SystemTime::now(),
-        }
+// ─────────────────────────────────────────────────────────────────────────────
+// Idle State
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy)]
+pub struct IdleSession;
+
+impl IdleSession {
+    pub fn new() -> Self {
+        Self
     }
 
-    /// Stop blocking — consumes self, returns IdleSession
+    /// Transition: Idle -> Active
+    pub fn start(self, duration: Duration) -> ActiveSession {
+        ActiveSession {
+            deadline: Instant::now() + duration,
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Active State
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy)]
+pub struct ActiveSession {
+    deadline: Instant,
+}
+
+impl ActiveSession {
+    pub fn remaining(&self) -> Duration {
+        self.deadline.saturating_duration_since(Instant::now())
+    }
+
+    /// Transition: Active -> Idle
     pub fn stop(self) -> IdleSession {
         IdleSession
     }
 
-    /// Get remaining time
-    pub fn remaining(&self) -> Duration {
-        let elapsed = self.started_at.elapsed();
-        //elasped() is apart of duration crate, Returns the amount of time elapsed since this instant.
-        self.duration.saturating_sub(elapsed)
-        //computes self - other
-    }
-
-    /// Check if expired — returns appropriate Session variant
-    pub fn check_expired(self) -> Session {
-        if self.remaining() == Duration::ZERO {
-            Session::Idle(IdleSession)
-        } else {
-            Session::Active(self)
+    #[cfg(test)]
+    pub fn new_for_test(duration: Duration) -> Self {
+        Self {
+            deadline: Instant::now() + duration,
         }
     }
 }
 
-impl Default for IdleSession {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Default for Session {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-// consuming self pattern 
-impl Session {
-    /// Create a new idle session
-    pub fn new() -> Self {
-        Self::Idle(IdleSession::new())
-    }
-
-    /// Check if currently active
-    pub fn is_active(&self) -> bool {
-        matches!(self, Self::Active(_))
-    }
-
-    /// Get remaining time (zero if idle)
-    pub fn remaining(&self) -> Duration {
-        match self {
-            Self::Idle(_) => Duration::ZERO,
-            Self::Active(active) => active.remaining(),
-        }
-    }
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// Tests
+// ─────────────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::thread::sleep;
-
-    // IdleSession tests
-    #[test]
-    fn idle_session_new() { 
-        let idle = IdleSession::new();
-        assert!(matches!(idle, IdleSession));
-    }
 
     #[test]
-    fn idle_session_start_returns_active() { 
-        let idle = IdleSession::new();
-        let active = idle.start(Duration::from_secs(10));
-        assert!(matches!(active, ActiveSession { .. }));
-    }
-
-    // ActiveSession tests
-    #[test]
-    fn active_session_stop_returns_idle() { 
-        let idle = IdleSession::new();
-        let active = idle.start(Duration::from_secs(10));
-        let idle_again = active.stop();
-        assert!(matches!(idle_again, IdleSession));
-    }
-
-    #[test]
-    fn active_session_remaining_returns_time_left() { 
-        let idle = IdleSession::new();
-        let active = idle.start(Duration::from_secs(10));
-        let remaining = active.remaining();
-        // Should be close to 10 seconds (might be slightly less)
-        assert!(remaining.as_secs() >= 9);
-    }
-
-    #[test]
-    fn active_session_remaining_returns_zero_when_expired() {
-        let idle = IdleSession::new();
-        let active = idle.start(Duration::from_millis(10));  // Very short!
-        sleep(Duration::from_millis(20));  // Wait for expiration
-        let remaining = active.remaining();
-        assert_eq!(remaining, Duration::ZERO);
-    }
-
-    #[test]
-    fn active_session_check_expired_transitions_to_idle() { 
-        let idle = IdleSession::new();
-        let active = idle.start(Duration::from_millis(10));  // Very short!
-        sleep(Duration::from_millis(20));  // Wait for expiration
-        let session = active.check_expired();
-        assert!(matches!(session, Session::Idle(_)));
-    }
-
-    #[test]
-    fn active_session_check_expired_stays_active_when_time_remains() { 
-        let idle = IdleSession::new();
-        let active = idle.start(Duration::from_secs(60));  // Long duration
-        let session = active.check_expired();
-        assert!(matches!(session, Session::Active(_)));
-    }
-
-    // Session enum tests
-    #[test]
-    fn session_is_active_returns_false_for_idle() { 
-        let session = Session::new();
+    fn idle_session_is_not_active() {
+        let session = Session::Idle(IdleSession::new());
         assert!(!session.is_active());
+        assert_eq!(session.remaining(), Duration::ZERO);
     }
 
     #[test]
-    fn session_is_active_returns_true_for_active() { 
+    fn start_transitions_to_active() {
         let idle = IdleSession::new();
         let active = idle.start(Duration::from_secs(60));
         let session = Session::Active(active);
         assert!(session.is_active());
-    }       
+        assert!(session.remaining() > Duration::from_secs(50));
+    }
 
     #[test]
-    fn session_remaining_delegates_correctly() { 
+    fn stop_transitions_to_idle() {
         let idle = IdleSession::new();
-        let active = idle.start(Duration::from_secs(10));
-        let session = Session::Active(active);
-        let remaining = session.remaining();
-        assert!(remaining.as_secs() >= 9);
+        let active = idle.start(Duration::from_secs(60));
+        let _back_to_idle = active.stop();
+    }
+
+    #[test]
+    fn remaining_decreases_over_time() {
+        let active = ActiveSession::new_for_test(Duration::from_secs(60));
+        let r1 = active.remaining();
+        std::thread::sleep(Duration::from_millis(50));
+        let r2 = active.remaining();
+        assert!(r2 < r1);
+    }
+
+    #[test]
+    fn expired_session_returns_zero() {
+        let active = ActiveSession::new_for_test(Duration::from_millis(1));
+        std::thread::sleep(Duration::from_millis(10));
+        assert_eq!(active.remaining(), Duration::ZERO);
     }
 }

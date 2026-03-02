@@ -141,11 +141,13 @@ async fn send_and_handle(conn: &mut Connection, msg: ClientMessage){
         DaemonMessage::Stopped => {
             println!("Session stopped");
         }
-        DaemonMessage::StatusIdle => {
+        DaemonMessage::StatusIdle { sites } => {
             println!("Idle");
+            for s in &sites { println!("  {}", s); }
         }
-        DaemonMessage::StatusWithTime { time_left } => {
+        DaemonMessage::StatusWithTime { time_left, sites } => {
             println!("Active: {} remaining", format_duration(time_left));
+            for s in &sites { println!("  {}", s); }
         }
         DaemonMessage::Pong => {
             println!("Pong");
@@ -153,6 +155,9 @@ async fn send_and_handle(conn: &mut Connection, msg: ClientMessage){
         DaemonMessage::Error(msg) => {
             eprintln!("{}", msg);
             std::process::exit(1);
+        }
+        other => {
+            println!("{:?}", other);
         }
     }
 }

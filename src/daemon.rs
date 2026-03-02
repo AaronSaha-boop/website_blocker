@@ -1,40 +1,51 @@
 // src/daemon.rs
 
-//! dark-pattern daemon - the core focus session manager.
+//! dark-pattern daemon — the core focus session manager.
 //!
-//! The daemon is implemented using the Actor model:
-//! - `DaemonHandle`: The public API (Handle) that communicates with the actor via MPSC.
-//! - `DaemonActor`: The background task (Actor) that handles IO and state transitions.
+//! Implemented using the Actor model:
+//! - `DaemonHandle`: Clone-able public API that sends commands via MPSC.
+//! - `DaemonActor`: Background task owning all IO, state, and the database handle.
 //!
 //! # Cold Turkey Enforcement
-//! - Sessions cannot be stopped manually once started
-//! - Shutdown signals are blocked during active sessions
-//! - Sessions expire naturally based on their duration
+//! - Sessions cannot be stopped manually once started.
+//! - Shutdown signals are blocked during active sessions.
+//! - Sessions expire naturally based on their duration.
+//!
+//! # Scheduling
+//! - Profiles define sets of blocked sites, apps, and DOM rules.
+//! - Schedules determine when profiles are active (recurring or one-time).
+//! - The daemon checks schedules every tick and applies the merged policy.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 use thiserror::Error;
-use tokio::sync::{mpsc, oneshot, broadcast};
+use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio::time::{self, Interval};
 use nix::sys::signal;
 use nix::unistd::Pid;
-use std::path::Path;
 
 use crate::config::config::Config;
+use crate::db::{
+    ActivePolicy, BlockedApp, BlockedWebsite, DbError, DbHandle, DomRule,
+    Profile, Schedule,
+};
 use crate::fs::{self, FsError};
 use crate::host;
-use crate::protocols::{self, ProtocolError, ClientMessage, DaemonMessage};
-use crate::session::{Session, IdleSession};
-use crate::socket::{SocketServer, SocketError, Connection};
+use crate::protocols::{self, ClientMessage, DaemonMessage, ProtocolError};
+use crate::session::{IdleSession, Session};
+use crate::socket::{Connection, SocketError, SocketServer};
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Error Types
+// Error
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[derive(Error, Debug)]
 pub enum DaemonError {
     #[error("Configuration error: {0}")]
     Config(String),
+
+    #[error("Database error: {0}")]
+    Database(#[from] DbError),
 
     #[error("Socket error: {0}")]
     Socket(#[from] SocketError),
@@ -56,11 +67,12 @@ pub enum DaemonError {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Command Pattern (Oneshot Responses)
+// Commands
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[derive(Debug)]
 pub enum Command {
+    // Session commands
     Start {
         duration: Duration,
         reply: oneshot::Sender<Result<(), DaemonError>>,
@@ -75,16 +87,112 @@ pub enum Command {
         force: bool,
         reply: oneshot::Sender<Result<(), DaemonError>>,
     },
+
+    // Global website commands (backward compatible)
+    AddWebsite {
+        url: String,
+        reply: oneshot::Sender<Result<bool, DaemonError>>,
+    },
+    RemoveWebsite {
+        url: String,
+        reply: oneshot::Sender<Result<bool, DaemonError>>,
+    },
+    ListWebsites {
+        reply: oneshot::Sender<Result<Vec<String>, DaemonError>>,
+    },
+
+    // Profile commands
+    CreateProfile {
+        name: String,
+        reply: oneshot::Sender<Result<Profile, DaemonError>>,
+    },
+    GetProfile {
+        id: String,
+        reply: oneshot::Sender<Result<Option<Profile>, DaemonError>>,
+    },
+    ListProfiles {
+        reply: oneshot::Sender<Result<Vec<Profile>, DaemonError>>,
+    },
+    UpdateProfile {
+        profile: Profile,
+        reply: oneshot::Sender<Result<(), DaemonError>>,
+    },
+    DeleteProfile {
+        id: String,
+        reply: oneshot::Sender<Result<(), DaemonError>>,
+    },
+
+    // Schedule commands
+    CreateSchedule {
+        schedule: Schedule,
+        reply: oneshot::Sender<Result<Schedule, DaemonError>>,
+    },
+    ListSchedules {
+        profile_id: String,
+        reply: oneshot::Sender<Result<Vec<Schedule>, DaemonError>>,
+    },
+    DeleteSchedule {
+        id: i64,
+        reply: oneshot::Sender<Result<(), DaemonError>>,
+    },
+
+    // Profile blocked websites
+    AddProfileWebsite {
+        profile_id: String,
+        domain: String,
+        reply: oneshot::Sender<Result<BlockedWebsite, DaemonError>>,
+    },
+    ListProfileWebsites {
+        profile_id: String,
+        reply: oneshot::Sender<Result<Vec<BlockedWebsite>, DaemonError>>,
+    },
+    DeleteProfileWebsite {
+        id: i64,
+        reply: oneshot::Sender<Result<(), DaemonError>>,
+    },
+
+    // Profile blocked apps
+    AddProfileApp {
+        profile_id: String,
+        app_identifier: String,
+        reply: oneshot::Sender<Result<BlockedApp, DaemonError>>,
+    },
+    ListProfileApps {
+        profile_id: String,
+        reply: oneshot::Sender<Result<Vec<BlockedApp>, DaemonError>>,
+    },
+    DeleteProfileApp {
+        id: i64,
+        reply: oneshot::Sender<Result<(), DaemonError>>,
+    },
+
+    // DOM rules
+    AddDomRule {
+        profile_id: String,
+        site: String,
+        toggle: String,
+        reply: oneshot::Sender<Result<DomRule, DaemonError>>,
+    },
+    ListDomRules {
+        profile_id: String,
+        reply: oneshot::Sender<Result<Vec<DomRule>, DaemonError>>,
+    },
+    DeleteDomRule {
+        id: i64,
+        reply: oneshot::Sender<Result<(), DaemonError>>,
+    },
+
+    // Active policy (what's blocked right now)
+    GetActivePolicy {
+        reply: oneshot::Sender<Result<ActivePolicy, DaemonError>>,
+    },
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Actor Handle
+// Handle (public API)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Clone-able handle for communicating with the daemon actor.
-/// 
-/// This is the public API for interacting with the daemon.
-/// Multiple handles can exist (e.g., one per connection handler).
 #[derive(Clone)]
 pub struct DaemonHandle {
     tx: mpsc::Sender<Command>,
@@ -92,299 +200,524 @@ pub struct DaemonHandle {
 }
 
 impl DaemonHandle {
-    pub fn new(tx: mpsc::Sender<Command>, session_tx: broadcast::Sender<Session>) -> Self {
-        Self { tx, session_tx }
-    }
-
-    /// Subscribe to session state changes.
-    /// Useful for UI updates or native messaging.
     pub fn subscribe(&self) -> broadcast::Receiver<Session> {
         self.session_tx.subscribe()
     }
 
-    /// Start a new focus session.
-    /// 
-    /// # Errors
-    /// Returns error if a session is already active.
+    // ── Session commands ─────────────────────────────────────────────────────
+
     pub async fn start_session(&self, duration: Duration) -> Result<(), DaemonError> {
         let (reply_tx, reply_rx) = oneshot::channel();
         self.tx
-            .send(Command::Start { duration, reply: reply_tx })
+            .send(Command::Start {
+                duration,
+                reply: reply_tx,
+            })
             .await
             .map_err(|e| DaemonError::Actor(e.to_string()))?;
-        reply_rx.await.map_err(|e| DaemonError::Actor(e.to_string()))?
+        reply_rx
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?
     }
 
-    /// Attempt to stop the current session.
-    /// 
-    /// # Cold Turkey Enforcement
-    /// This will ALWAYS fail during an active session.
-    /// Sessions must expire naturally.
     pub async fn stop_session(&self) -> Result<(), DaemonError> {
         let (reply_tx, reply_rx) = oneshot::channel();
         self.tx
             .send(Command::Stop { reply: reply_tx })
             .await
             .map_err(|e| DaemonError::Actor(e.to_string()))?;
-        reply_rx.await.map_err(|e| DaemonError::Actor(e.to_string()))?
+        reply_rx
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?
     }
 
-    /// Get the current session state.
     pub async fn get_status(&self) -> Result<Session, DaemonError> {
         let (reply_tx, reply_rx) = oneshot::channel();
         self.tx
             .send(Command::GetStatus { reply: reply_tx })
             .await
             .map_err(|e| DaemonError::Actor(e.to_string()))?;
-        reply_rx.await.map_err(|e| DaemonError::Actor(e.to_string()))
+        reply_rx
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))
     }
 
-    /// Request daemon shutdown.
-    /// 
-    /// # Cold Turkey Enforcement
-    /// - `force: false` - Blocked during active session (default behavior)
-    /// - `force: true` - Shutdown anyway (for system shutdown/emergency)
     pub async fn shutdown(&self, force: bool) -> Result<(), DaemonError> {
         let (reply_tx, reply_rx) = oneshot::channel();
         self.tx
-            .send(Command::Shutdown { force, reply: reply_tx })
+            .send(Command::Shutdown {
+                force,
+                reply: reply_tx,
+            })
             .await
             .map_err(|e| DaemonError::Actor(e.to_string()))?;
-        reply_rx.await.map_err(|e| DaemonError::Actor(e.to_string()))?
+        reply_rx
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?
+    }
+
+    // ── Global website commands ──────────────────────────────────────────────
+
+    pub async fn add_website(&self, url: String) -> Result<bool, DaemonError> {
+        let (reply_tx, reply_rx) = oneshot::channel();
+        self.tx
+            .send(Command::AddWebsite {
+                url,
+                reply: reply_tx,
+            })
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?;
+        reply_rx
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?
+    }
+
+    pub async fn remove_website(&self, url: String) -> Result<bool, DaemonError> {
+        let (reply_tx, reply_rx) = oneshot::channel();
+        self.tx
+            .send(Command::RemoveWebsite {
+                url,
+                reply: reply_tx,
+            })
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?;
+        reply_rx
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?
+    }
+
+    pub async fn list_websites(&self) -> Result<Vec<String>, DaemonError> {
+        let (reply_tx, reply_rx) = oneshot::channel();
+        self.tx
+            .send(Command::ListWebsites { reply: reply_tx })
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?;
+        reply_rx
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?
+    }
+
+    // ── Profile commands ─────────────────────────────────────────────────────
+
+    pub async fn create_profile(&self, name: String) -> Result<Profile, DaemonError> {
+        let (reply_tx, reply_rx) = oneshot::channel();
+        self.tx
+            .send(Command::CreateProfile {
+                name,
+                reply: reply_tx,
+            })
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?;
+        reply_rx
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?
+    }
+
+    pub async fn get_profile(&self, id: String) -> Result<Option<Profile>, DaemonError> {
+        let (reply_tx, reply_rx) = oneshot::channel();
+        self.tx
+            .send(Command::GetProfile { id, reply: reply_tx })
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?;
+        reply_rx
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?
+    }
+
+    pub async fn list_profiles(&self) -> Result<Vec<Profile>, DaemonError> {
+        let (reply_tx, reply_rx) = oneshot::channel();
+        self.tx
+            .send(Command::ListProfiles { reply: reply_tx })
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?;
+        reply_rx
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?
+    }
+
+    pub async fn update_profile(&self, profile: Profile) -> Result<(), DaemonError> {
+        let (reply_tx, reply_rx) = oneshot::channel();
+        self.tx
+            .send(Command::UpdateProfile {
+                profile,
+                reply: reply_tx,
+            })
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?;
+        reply_rx
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?
+    }
+
+    pub async fn delete_profile(&self, id: String) -> Result<(), DaemonError> {
+        let (reply_tx, reply_rx) = oneshot::channel();
+        self.tx
+            .send(Command::DeleteProfile { id, reply: reply_tx })
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?;
+        reply_rx
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?
+    }
+
+    // ── Schedule commands ────────────────────────────────────────────────────
+
+    pub async fn create_schedule(&self, schedule: Schedule) -> Result<Schedule, DaemonError> {
+        let (reply_tx, reply_rx) = oneshot::channel();
+        self.tx
+            .send(Command::CreateSchedule {
+                schedule,
+                reply: reply_tx,
+            })
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?;
+        reply_rx
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?
+    }
+
+    pub async fn list_schedules(&self, profile_id: String) -> Result<Vec<Schedule>, DaemonError> {
+        let (reply_tx, reply_rx) = oneshot::channel();
+        self.tx
+            .send(Command::ListSchedules {
+                profile_id,
+                reply: reply_tx,
+            })
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?;
+        reply_rx
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?
+    }
+
+    pub async fn delete_schedule(&self, id: i64) -> Result<(), DaemonError> {
+        let (reply_tx, reply_rx) = oneshot::channel();
+        self.tx
+            .send(Command::DeleteSchedule { id, reply: reply_tx })
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?;
+        reply_rx
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?
+    }
+
+    // ── Active policy ────────────────────────────────────────────────────────
+
+    pub async fn get_active_policy(&self) -> Result<ActivePolicy, DaemonError> {
+        let (reply_tx, reply_rx) = oneshot::channel();
+        self.tx
+            .send(Command::GetActivePolicy { reply: reply_tx })
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?;
+        reply_rx
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Actor (IO and Message Handling)
+// Actor
 // ─────────────────────────────────────────────────────────────────────────────
 
 pub struct DaemonActor {
     rx: mpsc::Receiver<Command>,
     cmd_tx: mpsc::Sender<Command>,
     session_tx: broadcast::Sender<Session>,
+    policy_tx: broadcast::Sender<ActivePolicy>,
     config: Config,
+    db: DbHandle,
     socket_server: SocketServer,
     timer: Interval,
     session: Session,
+    cached_policy: ActivePolicy,
+    last_policy_check: Option<String>,
 }
 
 impl DaemonActor {
-    pub async fn new(
+    async fn new(
         rx: mpsc::Receiver<Command>,
         cmd_tx: mpsc::Sender<Command>,
         session_tx: broadcast::Sender<Session>,
+        policy_tx: broadcast::Sender<ActivePolicy>,
         config: Config,
     ) -> Result<Self, DaemonError> {
         let socket_server = SocketServer::bind(&config.socket_path).await?;
         let timer = time::interval(Duration::from_secs(1));
+        let db = DbHandle::open(&config.db_path)?;
 
         Ok(Self {
             rx,
             cmd_tx,
             session_tx,
+            policy_tx,
             config,
+            db,
             socket_server,
             timer,
             session: Session::Idle(IdleSession::new()),
+            cached_policy: ActivePolicy::default(),
+            last_policy_check: None,
         })
     }
 
-    /// The core loop of the actor.
-    /// 
-    /// Owns the session state and handles:
-    /// - Commands from handles
-    /// - Timer ticks for expiration
-    /// - Socket connections
-    pub async fn run(mut self) -> Result<(), DaemonError> {
-        // PID file locking
+    async fn run(mut self) -> Result<(), DaemonError> {
         let _pid_guard = self.lock_pid_file().await?;
+        let _ = self.session_tx.send(self.session);
 
-        // Broadcast initial state
-        let _ = self.session_tx.send(self.session.clone());
+        // Subscribe to our own policy broadcast so we can keep cached_policy
+        // in sync when connection handlers trigger broadcasts.
+        let mut policy_rx = self.policy_tx.subscribe();
+
+        // Initial policy load
+        if let Ok(policy) = self.get_current_policy().await {
+            self.cached_policy = policy;
+        }
 
         loop {
             tokio::select! {
-                // ─────────────────────────────────────────
-                // Process commands from DaemonHandle
-                // ─────────────────────────────────────────
                 Some(cmd) = self.rx.recv() => {
                     match self.handle_command(cmd).await {
-                        Ok(should_exit) => {
-                            if should_exit {
-                                break;
-                            }
-                        }
-                        Err(e) => {
-                            eprintln!("Command handling error: {}", e);
-                        }
+                        Ok(true) => break,
+                        Ok(false) => {}
+                        Err(e) => eprintln!("Command error: {}", e),
                     }
                 }
-
-                // ─────────────────────────────────────────
-                // Tick: check session expiration
-                // ─────────────────────────────────────────
                 _ = self.timer.tick() => {
                     self.handle_tick().await;
                 }
-
-                // ─────────────────────────────────────────
-                // Accept socket connections
-                // ─────────────────────────────────────────
+                // Keep cached_policy in sync with broadcasts from connection handlers
+                Ok(policy) = policy_rx.recv() => {
+                    self.cached_policy = policy;
+                }
                 result = self.socket_server.accept_no_timeout(Duration::from_secs(5)) => {
                     match result {
                         Ok(conn) => {
                             let tx = self.cmd_tx.clone();
+                            let db = self.db.clone();
+                            let conn_policy_rx = self.policy_tx.subscribe();
+                            let policy_tx = self.policy_tx.clone();
                             tokio::spawn(async move {
-                                if let Err(e) = handle_connection(conn, tx).await {
-                                    eprintln!("Error handling client connection: {}", e);
+                                if let Err(e) = handle_connection(conn, tx, db, conn_policy_rx, policy_tx).await {
+                                    eprintln!("Connection error: {}", e);
                                 }
                             });
                         }
-                        Err(e) => {
-                            eprintln!("Socket accept error: {}", e);
-                        }
+                        Err(e) => eprintln!("Accept error: {}", e),
                     }
                 }
             }
         }
 
-        // Cleanup on exit
-        self.cleanup().await?;
-        Ok(())
+        self.cleanup().await
     }
 
-    /// Handle a command and return (new_session, should_exit).
-    async fn handle_command(
-        &mut self,
-        cmd: Command,
-    ) -> Result<bool, DaemonError> {
-        let mut should_exit = false;
-
+    /// Returns `true` if the actor should exit.
+    async fn handle_command(&mut self, cmd: Command) -> Result<bool, DaemonError> {
         match cmd {
+            // ── Session commands ─────────────────────────────────────────────
+
             Command::Start { duration, reply } => {
-                let result = match self.session {
-                    Session::Idle(idle) => {
-                        // IO: Add blocks to hosts file
-                        match self.add_blocks().await {
-                            Ok(()) => {
-                                // Typestate Transition: Idle -> Active
-                                let active = idle.start(duration);
-                                self.session = Session::Active(active);
-                                let _ = self.session_tx.send(self.session.clone());
-                                Ok(())
-                            }
-                            Err(e) => Err(e)
-                        }
-                    }
-                    Session::Active(_) => {
-                        Err(DaemonError::Session("Session already active".into()))
-                    }
-                };
+                let result = self.handle_start(duration).await;
                 let _ = reply.send(result);
             }
 
             Command::Stop { reply } => {
-                // COLD TURKEY: Stop is NEVER allowed during active session
                 let result = if self.session.is_active() {
                     Err(DaemonError::Session(
-                        "Cannot stop active session. Stay focused!".into()
+                        "Cannot stop active session. Stay focused!".into(),
                     ))
                 } else {
-                    // Already idle, nothing to do
                     Ok(())
                 };
                 let _ = reply.send(result);
             }
 
             Command::GetStatus { reply } => {
-                let _ = reply.send(self.session.clone());
+                let _ = reply.send(self.session);
             }
 
             Command::Shutdown { force, reply } => {
-                if self.session.is_active() && !force {
-                    // COLD TURKEY: Block shutdown during active session
-                    let remaining = self.session.remaining().as_secs();
-                    let _ = reply.send(Err(DaemonError::ShutdownBlocked(remaining)));
-                    
-                    eprintln!();
-                    eprintln!("╔══════════════════════════════════════════════════════════╗");
-                    eprintln!("║  ⚠️  SHUTDOWN BLOCKED — Focus session active             ║");
-                    eprintln!("║  Time remaining: {:>4} seconds                           ║", remaining);
-                    eprintln!("║  Stay focused! Shutdown will proceed when session ends.  ║");
-                    eprintln!("╚══════════════════════════════════════════════════════════╝");
-                    eprintln!();
-                } else {
-                    if force && self.session.is_active() {
-                        eprintln!("Warning: Forced shutdown during active session");
-                    }
-                    let _ = reply.send(Ok(()));
-                    should_exit = true;
-                }
+                return self.handle_shutdown(force, reply);
             }
-        }
 
-        Ok(should_exit)
+            // Global website commands go through actor for backward compat
+            Command::AddWebsite { url, reply } => {
+                let result = self
+                    .db
+                    .add_global_website(url)
+                    .await
+                    .map_err(DaemonError::from);
+                let _ = reply.send(result);
+            }
+
+            Command::RemoveWebsite { url, reply } => {
+                let result = self
+                    .db
+                    .remove_global_website(url)
+                    .await
+                    .map_err(DaemonError::from);
+                let _ = reply.send(result);
+            }
+
+            Command::ListWebsites { reply } => {
+                let result = self
+                    .db
+                    .list_global_websites()
+                    .await
+                    .map_err(DaemonError::from);
+                let _ = reply.send(result);
+            }
+
+            // All other commands are handled directly by the dispatch function
+            // via DbHandle (they don't need actor state).
+            _ => {}
+        }
+        Ok(false)
     }
 
-    /// Handle timer tick: check for session expiration.
-    async fn handle_tick(&mut self) {
+    async fn handle_start(&mut self, duration: Duration) -> Result<(), DaemonError> {
         match self.session {
-            Session::Active(active) if active.remaining() == Duration::ZERO => {
-                println!("Session expired. Removing blocks...");
-                
+            Session::Active(_) => Err(DaemonError::Session("Session already active".into())),
+            Session::Idle(idle) => {
+                // Get current merged policy and cache it
+                let policy = self.get_current_policy().await?;
+                self.cached_policy = policy;
+
+                // Add blocks to hosts file
+                self.add_blocks().await?;
+
+                // Start session
+                self.session = Session::Active(idle.start(duration));
+                let _ = self.session_tx.send(self.session);
+                Ok(())
+            }
+        }
+    }
+
+    fn handle_shutdown(
+        &self,
+        force: bool,
+        reply: oneshot::Sender<Result<(), DaemonError>>,
+    ) -> Result<bool, DaemonError> {
+        if self.session.is_active() && !force {
+            let remaining = self.session.remaining().as_secs();
+            let _ = reply.send(Err(DaemonError::ShutdownBlocked(remaining)));
+            eprintln!("Shutdown blocked: {} seconds remaining", remaining);
+            Ok(false)
+        } else {
+            if force && self.session.is_active() {
+                eprintln!("Warning: forced shutdown during active session");
+            }
+            let _ = reply.send(Ok(()));
+            Ok(true)
+        }
+    }
+
+    async fn handle_tick(&mut self) {
+        // Check for session expiration
+        if let Session::Active(active) = self.session {
+            if active.remaining() == Duration::ZERO {
+                eprintln!("Session expired. Removing blocks...");
+
                 if let Err(e) = self.remove_blocks().await {
                     eprintln!("Failed to remove blocks on expiration: {}", e);
                 }
 
-                let new_session = Session::Idle(active.stop());
-                let _ = self.session_tx.send(new_session.clone());
-                self.session = new_session;
+                self.session = Session::Idle(active.stop());
+                let _ = self.session_tx.send(self.session);
             }
-            _ => {}
+        }
+
+        // Check if scheduled policy has changed (every minute)
+        let now = chrono::Local::now();
+        let check_key = format!("{}:{}", now.format("%a"), now.format("%H:%M"));
+
+        if self.last_policy_check.as_ref() != Some(&check_key) {
+            self.last_policy_check = Some(check_key);
+
+            if let Ok(new_policy) = self.get_current_policy().await {
+                // Check if policy changed (websites, apps, or DOM rules)
+                if new_policy != self.cached_policy {
+                    eprintln!("Scheduled policy changed, updating blocks...");
+
+                    // If session is active, update hosts file
+                    if self.session.is_active() {
+                        self.cached_policy = new_policy.clone();
+                        if let Err(e) = self.add_blocks().await {
+                            eprintln!("Failed to update blocks: {}", e);
+                        }
+                    } else {
+                        self.cached_policy = new_policy.clone();
+                    }
+
+                    // Notify all subscribers
+                    let _ = self.policy_tx.send(new_policy);
+                }
+            }
         }
     }
 
-    /// Add blocked hosts to /etc/hosts.
+    // ── Policy helpers ───────────────────────────────────────────────────────
+
+    /// Get current policy by merging active scheduled profiles + global blocklist
+    async fn get_current_policy(&self) -> Result<ActivePolicy, DaemonError> {
+        let now = chrono::Local::now();
+        let day = now.format("%a").to_string().to_lowercase();
+        let time = now.format("%H:%M").to_string();
+
+        self.db
+            .get_active_policy(day, time)
+            .await
+            .map_err(DaemonError::from)
+    }
+
+    // ── Hosts file IO ────────────────────────────────────────────────────────
+
     async fn add_blocks(&self) -> Result<(), DaemonError> {
+        let websites = &self.cached_policy.blocked_websites;
+
+        if websites.is_empty() {
+            eprintln!("Warning: no blocked websites in active policy");
+            return Ok(());
+        }
+
         let content = fs::read_file(&self.config.hosts_file).await?;
-        let new_content = host::add_blocked_hosts(&content, self.config.blocked.as_slice());
+        let new_content = host::add_blocked_hosts(&content, websites);
         fs::write_file_atomic(&self.config.hosts_file, &new_content).await?;
-        println!("Blocks added: {:?}", self.config.blocked.as_slice());
+        eprintln!("Blocks added: {:?}", websites);
         Ok(())
     }
 
-    /// Remove blocked hosts from /etc/hosts.
     async fn remove_blocks(&self) -> Result<(), DaemonError> {
         let content = fs::read_file(&self.config.hosts_file).await?;
         let new_content = host::remove_blocked_hosts(&content);
         fs::write_file_atomic(&self.config.hosts_file, &new_content).await?;
-        println!("Blocks removed");
+        eprintln!("Blocks removed");
         Ok(())
     }
 
-    /// Cleanup on shutdown.
     async fn cleanup(&self) -> Result<(), DaemonError> {
-        println!("Cleaning up...");
+        eprintln!("Cleaning up...");
 
-        // Remove any remaining blocks
         let content = fs::read_file(&self.config.hosts_file).await?;
         if host::has_blocked_hosts(&content) {
             self.remove_blocks().await?;
         }
 
-        // Remove socket file
         if let Err(e) = tokio::fs::remove_file(&self.config.socket_path).await {
             eprintln!("Failed to remove socket file: {}", e);
         }
 
-        println!("Cleanup complete");
+        eprintln!("Cleanup complete");
         Ok(())
     }
 
+    // ── PID locking ──────────────────────────────────────────────────────────
+
     async fn lock_pid_file(&self) -> Result<PidGuard, DaemonError> {
         let pid_path = &self.config.pid_path;
+
         if fs::file_exists(pid_path).await? {
-            // Check if process is actually running
             let content = fs::read_file(pid_path).await?;
             if let Ok(old_pid) = content.trim().parse::<i32>() {
                 if is_process_running(old_pid) {
@@ -423,26 +756,166 @@ fn is_process_running(pid: i32) -> bool {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Connection Handler
+// Connection handler
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Handle an individual socket connection from a client.
 async fn handle_connection(
     mut conn: Connection,
     tx: mpsc::Sender<Command>,
+    db: DbHandle,
+    mut policy_rx: broadcast::Receiver<ActivePolicy>,
+    policy_tx: broadcast::Sender<ActivePolicy>,
 ) -> Result<(), DaemonError> {
-    while let Some(bytes) = conn.recv().await? {
-        let client_msg: ClientMessage = protocols::decode(&bytes)?;
-        let response = process_client_message(client_msg, &tx).await?;
-        conn.send(&protocols::encode(&response)?).await?;
+    let mut subscribed = false;
+
+    loop {
+        if subscribed {
+            // Subscriber mode: forward policy pushes AND handle requests
+            tokio::select! {
+                recv_result = conn.recv() => {
+                    match recv_result? {
+                        Some(bytes) => {
+                            let msg: ClientMessage = protocols::decode(&bytes)?;
+                            let (response, dirty) = dispatch(msg, &tx, &db).await;
+                            conn.send(&protocols::encode(&response)?).await?;
+
+                            // Broadcast to ALL subscribers (including ourselves via policy_rx)
+                            if dirty {
+                                broadcast_policy_change(&db, &policy_tx).await;
+                            }
+                        }
+                        None => break,
+                    }
+                }
+                policy_result = policy_rx.recv() => {
+                    match policy_result {
+                        Ok(policy) => {
+                            let msg = DaemonMessage::PolicyChanged(policy);
+                            if let Err(e) = conn.send(&protocols::encode(&msg)?).await {
+                                eprintln!("Failed to push policy to subscriber: {}", e);
+                                break;
+                            }
+                        }
+                        Err(broadcast::error::RecvError::Lagged(n)) => {
+                            eprintln!("Subscriber lagged by {} messages, continuing", n);
+                        }
+                        Err(broadcast::error::RecvError::Closed) => {
+                            break;
+                        }
+                    }
+                }
+            }
+        } else {
+            // Normal mode: request/response only
+            match conn.recv().await? {
+                Some(bytes) => {
+                    let msg: ClientMessage = protocols::decode(&bytes)?;
+
+                    if matches!(msg, ClientMessage::SubscribePolicyChanges) {
+                        subscribed = true;
+                        // Subscriber connections are long-lived (native host stays
+                        // connected for the lifetime of the extension). Remove the
+                        // short timeout that's appropriate for one-shot CLI requests.
+                        conn.set_timeout(Duration::from_secs(86400));
+                        let ack = DaemonMessage::Subscribed;
+                        conn.send(&protocols::encode(&ack)?).await?;
+                        continue;
+                    }
+
+                    let (response, dirty) = dispatch(msg, &tx, &db).await;
+                    conn.send(&protocols::encode(&response)?).await?;
+
+                    // Even non-subscriber connections (CLI) trigger broadcasts
+                    // so that subscriber connections (native host) get notified
+                    if dirty {
+                        broadcast_policy_change(&db, &policy_tx).await;
+                    }
+                }
+                None => break,
+            }
+        }
     }
+
     Ok(())
 }
 
-/// Process a single client message and return the response.
-async fn process_client_message(
+/// Re-query the active policy from the DB and broadcast it to all subscribers.
+async fn broadcast_policy_change(
+    db: &DbHandle,
+    policy_tx: &broadcast::Sender<ActivePolicy>,
+) {
+    let now = chrono::Local::now();
+    let day = now.format("%a").to_string().to_lowercase();
+    let time = now.format("%H:%M").to_string();
+
+    match db.get_active_policy(day, time).await {
+        Ok(policy) => {
+            eprintln!("Broadcasting policy change: {} sites, {} rules, {} receivers",
+                policy.blocked_websites.len(),
+                policy.dom_rules.len(),
+                policy_tx.receiver_count(),
+            );
+            match policy_tx.send(policy) {
+                Ok(n) => eprintln!("Policy broadcast sent to {} receivers", n),
+                Err(_) => eprintln!("Policy broadcast failed: no receivers"),
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to query policy for broadcast: {}", e);
+        }
+    }
+}
+
+/// Dispatch a client message to the appropriate handler.
+///
+/// DB errors are caught and returned as `DaemonMessage::Error` so that a
+/// single bad request doesn't kill the connection.
+///
+/// Returns the response message and whether the policy may have changed
+/// (so the caller can trigger a broadcast).
+async fn dispatch(
     msg: ClientMessage,
     tx: &mpsc::Sender<Command>,
+    db: &DbHandle,
+) -> (DaemonMessage, bool) {
+    match dispatch_inner(msg, tx, db).await {
+        Ok((response, dirty)) => (response, dirty),
+        Err(e) => (DaemonMessage::Error(e.to_string()), false),
+    }
+}
+
+async fn dispatch_inner(
+    msg: ClientMessage,
+    tx: &mpsc::Sender<Command>,
+    db: &DbHandle,
+) -> Result<(DaemonMessage, bool), DaemonError> {
+    // Determine if this message type mutates policy-relevant data
+    let is_mutation = matches!(
+        msg,
+        ClientMessage::CreateBlockedWebsite { .. }
+            | ClientMessage::DeleteBlockedWebsite { .. }
+            | ClientMessage::CreateBlockedApp { .. }
+            | ClientMessage::DeleteBlockedApp { .. }
+            | ClientMessage::CreateDomRule { .. }
+            | ClientMessage::DeleteDomRule { .. }
+            | ClientMessage::CreateSchedule { .. }
+            | ClientMessage::UpdateSchedule { .. }
+            | ClientMessage::DeleteSchedule { .. }
+            | ClientMessage::UpdateProfile { .. }
+            | ClientMessage::DeleteProfile { .. }
+            | ClientMessage::AddGlobalWebsite { .. }
+            | ClientMessage::RemoveGlobalWebsite { .. }
+    );
+
+    let response = dispatch_message(msg, tx, db).await?;
+    Ok((response, is_mutation))
+}
+
+/// Pure request → response dispatch. No side-effect tracking.
+async fn dispatch_message(
+    msg: ClientMessage,
+    tx: &mpsc::Sender<Command>,
+    db: &DbHandle,
 ) -> Result<DaemonMessage, DaemonError> {
     match msg {
         ClientMessage::Ping => Ok(DaemonMessage::Pong),
@@ -455,12 +928,8 @@ async fn process_client_message(
             })
             .await
             .map_err(|e| DaemonError::Actor(e.to_string()))?;
-
-            match reply_rx.await {
-                Ok(Ok(())) => Ok(DaemonMessage::Started { duration }),
-                Ok(Err(e)) => Ok(DaemonMessage::Error(e.to_string())),
-                Err(e) => Ok(DaemonMessage::Error(e.to_string())),
-            }
+            reply_rx.await.map_err(|e| DaemonError::Actor(e.to_string()))??;
+            Ok(DaemonMessage::Started { duration })
         }
 
         ClientMessage::Stop => {
@@ -468,12 +937,8 @@ async fn process_client_message(
             tx.send(Command::Stop { reply: reply_tx })
                 .await
                 .map_err(|e| DaemonError::Actor(e.to_string()))?;
-
-            match reply_rx.await {
-                Ok(Ok(())) => Ok(DaemonMessage::Stopped),
-                Ok(Err(e)) => Ok(DaemonMessage::Error(e.to_string())),
-                Err(e) => Ok(DaemonMessage::Error(e.to_string())),
-            }
+            reply_rx.await.map_err(|e| DaemonError::Actor(e.to_string()))??;
+            Ok(DaemonMessage::Stopped)
         }
 
         ClientMessage::GetStatus => {
@@ -481,14 +946,174 @@ async fn process_client_message(
             tx.send(Command::GetStatus { reply: reply_tx })
                 .await
                 .map_err(|e| DaemonError::Actor(e.to_string()))?;
+            let session = reply_rx.await.map_err(|e| DaemonError::Actor(e.to_string()))?;
+            let sites = db.list_global_websites().await?;
 
-            match reply_rx.await {
-                Ok(Session::Idle(_)) => Ok(DaemonMessage::StatusIdle),
-                Ok(Session::Active(a)) => Ok(DaemonMessage::StatusWithTime {
+            match session {
+                Session::Idle(_) => Ok(DaemonMessage::StatusIdle { sites }),
+                Session::Active(a) => Ok(DaemonMessage::StatusWithTime {
                     time_left: a.remaining().as_secs(),
+                    sites,
                 }),
-                Err(e) => Ok(DaemonMessage::Error(e.to_string())),
             }
+        }
+
+        // ── Profiles ─────────────────────────────────────────────────────────
+
+        ClientMessage::CreateProfile { name } => {
+            let profile = db.create_profile(name).await?;
+            Ok(DaemonMessage::Profile(profile))
+        }
+        ClientMessage::GetProfile { id } => {
+            match db.get_profile(id).await? {
+                Some(profile) => Ok(DaemonMessage::Profile(profile)),
+                None => Ok(DaemonMessage::Error("Profile not found".into())),
+            }
+        }
+        ClientMessage::ListProfiles => {
+            let profiles = db.list_profiles().await?;
+            Ok(DaemonMessage::ProfileList(profiles))
+        }
+        ClientMessage::UpdateProfile { profile } => {
+            db.update_profile(profile).await?;
+            Ok(DaemonMessage::ProfileUpdated)
+        }
+        ClientMessage::DeleteProfile { id } => {
+            db.delete_profile(id).await?;
+            Ok(DaemonMessage::ProfileDeleted)
+        }
+
+        // ── Schedules ────────────────────────────────────────────────────────
+
+        ClientMessage::CreateSchedule { schedule } => {
+            let schedule = db.create_schedule(schedule).await?;
+            Ok(DaemonMessage::Schedule(schedule))
+        }
+        ClientMessage::GetSchedule { id } => {
+            match db.get_schedule(id).await? {
+                Some(schedule) => Ok(DaemonMessage::Schedule(schedule)),
+                None => Ok(DaemonMessage::Error("Schedule not found".into())),
+            }
+        }
+        ClientMessage::ListSchedules { profile_id } => {
+            let schedules = db.list_schedules(profile_id).await?;
+            Ok(DaemonMessage::ScheduleList(schedules))
+        }
+        ClientMessage::UpdateSchedule { schedule } => {
+            db.update_schedule(schedule).await?;
+            Ok(DaemonMessage::ScheduleUpdated)
+        }
+        ClientMessage::DeleteSchedule { id } => {
+            db.delete_schedule(id).await?;
+            Ok(DaemonMessage::ScheduleDeleted)
+        }
+
+        // ── Blocked Websites ─────────────────────────────────────────────────
+
+        ClientMessage::CreateBlockedWebsite { website } => {
+            let website = db.create_blocked_website(website).await?;
+            Ok(DaemonMessage::BlockedWebsite(website))
+        }
+        ClientMessage::ListBlockedWebsites { profile_id } => {
+            let websites = db.list_blocked_websites(profile_id).await?;
+            Ok(DaemonMessage::BlockedWebsiteList(websites))
+        }
+        ClientMessage::DeleteBlockedWebsite { id } => {
+            db.delete_blocked_website(id).await?;
+            Ok(DaemonMessage::BlockedWebsiteDeleted)
+        }
+
+        // ── Blocked Apps ─────────────────────────────────────────────────────
+
+        ClientMessage::CreateBlockedApp { app } => {
+            let app = db.create_blocked_app(app).await?;
+            Ok(DaemonMessage::BlockedApp(app))
+        }
+        ClientMessage::GetBlockedApp { id } => {
+            match db.get_blocked_app(id).await? {
+                Some(app) => Ok(DaemonMessage::BlockedApp(app)),
+                None => Ok(DaemonMessage::Error("Blocked app not found".into())),
+            }
+        }
+        ClientMessage::ListBlockedApps { profile_id } => {
+            let apps = db.list_blocked_apps(profile_id).await?;
+            Ok(DaemonMessage::BlockedAppList(apps))
+        }
+        ClientMessage::DeleteBlockedApp { id } => {
+            db.delete_blocked_app(id).await?;
+            Ok(DaemonMessage::BlockedAppDeleted)
+        }
+
+        // ── DOM Rules ────────────────────────────────────────────────────────
+
+        ClientMessage::CreateDomRule { rule } => {
+            let rule = db.create_dom_rule(rule).await?;
+            Ok(DaemonMessage::DomRule(rule))
+        }
+        ClientMessage::GetDomRule { id } => {
+            match db.get_dom_rule(id).await? {
+                Some(rule) => Ok(DaemonMessage::DomRule(rule)),
+                None => Ok(DaemonMessage::Error("DOM rule not found".into())),
+            }
+        }
+        ClientMessage::ListDomRules { profile_id } => {
+            let rules = db.list_dom_rules(profile_id).await?;
+            Ok(DaemonMessage::DomRuleList(rules))
+        }
+        ClientMessage::DeleteDomRule { id } => {
+            db.delete_dom_rule(id).await?;
+            Ok(DaemonMessage::DomRuleDeleted)
+        }
+
+        // ── Manual Sessions ──────────────────────────────────────────────────
+
+        ClientMessage::CreateManualSession { session } => {
+            let session = db.create_manual_session(session).await?;
+            Ok(DaemonMessage::ManualSession(Some(session)))
+        }
+        ClientMessage::GetManualSession { id } => {
+            let session = db.get_manual_session(id).await?;
+            Ok(DaemonMessage::ManualSession(session))
+        }
+        ClientMessage::GetActiveManualSession => {
+            let session = db.get_active_manual_session().await?;
+            Ok(DaemonMessage::ManualSession(session))
+        }
+        ClientMessage::ListManualSessions => {
+            let sessions = db.list_manual_sessions().await?;
+            Ok(DaemonMessage::ManualSessionList(sessions))
+        }
+        ClientMessage::UpdateManualSession { session } => {
+            db.update_manual_session(session).await?;
+            Ok(DaemonMessage::ManualSessionUpdated)
+        }
+
+        // ── Global Blocked Websites ──────────────────────────────────────────
+
+        ClientMessage::AddGlobalWebsite { domain } => {
+            let success = db.add_global_website(domain).await?;
+            Ok(DaemonMessage::GlobalWebsiteAdded(success))
+        }
+        ClientMessage::RemoveGlobalWebsite { domain } => {
+            let success = db.remove_global_website(domain).await?;
+            Ok(DaemonMessage::GlobalWebsiteRemoved(success))
+        }
+        ClientMessage::ListGlobalWebsites => {
+            let websites = db.list_global_websites().await?;
+            Ok(DaemonMessage::GlobalWebsiteList(websites))
+        }
+
+        // ── Active Policy ────────────────────────────────────────────────────
+
+        ClientMessage::GetActivePolicy { current_day, current_time } => {
+            let policy = db.get_active_policy(current_day, current_time).await?;
+            Ok(DaemonMessage::ActivePolicy(policy))
+        }
+
+        // Subscriptions are handled by handle_connection, not dispatch.
+        // This arm should never be reached.
+        ClientMessage::SubscribePolicyChanges => {
+            Ok(DaemonMessage::Error("SubscribePolicyChanges must be sent before dispatching".into()))
         }
     }
 }
@@ -497,15 +1122,13 @@ async fn process_client_message(
 // Public API
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Initialize and start the daemon actor.
-/// 
-/// Returns a `DaemonHandle` for interacting with the daemon.
 pub async fn run(config: Config) -> Result<DaemonHandle, DaemonError> {
     let (tx, rx) = mpsc::channel(32);
     let (session_tx, _) = broadcast::channel(16);
+    let (policy_tx, _) = broadcast::channel(16);
 
-    let actor = DaemonActor::new(rx, tx.clone(), session_tx.clone(), config).await?;
-    let handle = DaemonHandle::new(tx, session_tx);
+    let actor = DaemonActor::new(rx, tx.clone(), session_tx.clone(), policy_tx.clone(), config).await?;
+    let handle = DaemonHandle { tx, session_tx };
 
     tokio::spawn(async move {
         if let Err(e) = actor.run().await {
@@ -516,7 +1139,6 @@ pub async fn run(config: Config) -> Result<DaemonHandle, DaemonError> {
     Ok(handle)
 }
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Tests
 // ─────────────────────────────────────────────────────────────────────────────
@@ -524,64 +1146,77 @@ pub async fn run(config: Config) -> Result<DaemonHandle, DaemonError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
     use tempfile::NamedTempFile;
-
-    fn dummy_config(hosts_path: &Path, socket_path: &Path, pid_path: &Path) -> Config {
-        let toml = format!(
-            r#"
-            hosts_file = "{}"
-            socket_path = "{}"
-            pid_path = "{}"
-            blocked = ["example.com", "distraction.net"]
-            "#,
-            hosts_path.display(),
-            socket_path.display(),
-            pid_path.display()
-        );
-        Config::from_toml(&toml).unwrap()
-    }
 
     fn unique_path(suffix: &str) -> PathBuf {
         use std::sync::atomic::{AtomicUsize, Ordering};
         static COUNTER: AtomicUsize = AtomicUsize::new(0);
         let id = COUNTER.fetch_add(1, Ordering::SeqCst);
-        PathBuf::from(format!("/tmp/dark-pattern_test_{}_{}.{}", std::process::id(), id, suffix))
+        PathBuf::from(format!(
+            "/tmp/dark-pattern_test_{}_{}.{}",
+            std::process::id(),
+            id,
+            suffix
+        ))
     }
 
-    #[tokio::test]
-    async fn test_initial_state_is_idle() {
-        let hosts_temp = NamedTempFile::new().unwrap();
-        let socket_path = unique_path("sock");
-        let pid_path = unique_path("pid");
-        let config = dummy_config(hosts_temp.path(), &socket_path, &pid_path);
+    fn test_config(hosts: &Path, socket: &Path, pid: &Path, db: &Path) -> Config {
+        Config::from_toml(&format!(
+            r#"
+            hosts_file = "{}"
+            socket_path = "{}"
+            pid_path = "{}"
+            db_path = "{}"
+            "#,
+            hosts.display(),
+            socket.display(),
+            pid.display(),
+            db.display(),
+        ))
+        .unwrap()
+    }
+
+    async fn start_test_daemon(websites: &[&str]) -> (DaemonHandle, NamedTempFile) {
+        let hosts = NamedTempFile::new().unwrap();
+        let db_path = unique_path("db");
+        let config = test_config(
+            hosts.path(),
+            &unique_path("sock"),
+            &unique_path("pid"),
+            &db_path,
+        );
 
         let handle = run(config).await.unwrap();
 
+        for site in websites {
+            handle.add_website(site.to_string()).await.unwrap();
+        }
+
+        (handle, hosts)
+    }
+
+    #[tokio::test]
+    async fn initial_state_is_idle() {
+        let (handle, _hosts) = start_test_daemon(&[]).await;
         let status = handle.get_status().await.unwrap();
         assert!(!status.is_active());
-
         handle.shutdown(true).await.unwrap();
     }
 
     #[tokio::test]
-    async fn test_start_session_activates_and_adds_blocks() {
-        let hosts_temp = NamedTempFile::new().unwrap();
-        let socket_path = unique_path("sock");
-        let pid_path = unique_path("pid");
-        let config = dummy_config(hosts_temp.path(), &socket_path, &pid_path);
+    async fn start_session_activates_and_adds_blocks() {
+        let (handle, hosts) = start_test_daemon(&["example.com", "distraction.net"]).await;
 
-        let handle = run(config).await.unwrap();
+        handle
+            .start_session(Duration::from_secs(60))
+            .await
+            .unwrap();
 
-        handle.start_session(Duration::from_secs(60)).await.unwrap();
-
-        // Verify session is active
         let status = handle.get_status().await.unwrap();
         assert!(status.is_active());
         assert!(status.remaining() > Duration::from_secs(50));
 
-        // Verify blocks were added
-        let content = std::fs::read_to_string(hosts_temp.path()).unwrap();
+        let content = std::fs::read_to_string(hosts.path()).unwrap();
         assert!(content.contains("example.com"));
         assert!(content.contains("distraction.net"));
 
@@ -589,16 +1224,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_cannot_start_session_twice() {
-        let hosts_temp = NamedTempFile::new().unwrap();
-        let socket_path = unique_path("sock");
-        let pid_path = unique_path("pid");
-        let config = dummy_config(hosts_temp.path(), &socket_path, &pid_path);
+    async fn cannot_start_session_twice() {
+        let (handle, _hosts) = start_test_daemon(&["example.com"]).await;
 
-        let handle = run(config).await.unwrap();
-
-        handle.start_session(Duration::from_secs(60)).await.unwrap();
-        
+        handle
+            .start_session(Duration::from_secs(60))
+            .await
+            .unwrap();
         let result = handle.start_session(Duration::from_secs(30)).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("already active"));
@@ -607,95 +1239,126 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_cold_turkey_stop_rejected_during_active() {
-        let hosts_temp = NamedTempFile::new().unwrap();
-        let socket_path = unique_path("sock");
-        let pid_path = unique_path("pid");
-        let config = dummy_config(hosts_temp.path(), &socket_path, &pid_path);
+    async fn cold_turkey_stop_rejected() {
+        let (handle, _hosts) = start_test_daemon(&["example.com"]).await;
 
-        let handle = run(config).await.unwrap();
+        handle
+            .start_session(Duration::from_secs(60))
+            .await
+            .unwrap();
 
-        handle.start_session(Duration::from_secs(60)).await.unwrap();
-
-        // COLD TURKEY: This should fail!
         let result = handle.stop_session().await;
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Cannot stop"));
 
-        // Session should still be active
-        let status = handle.get_status().await.unwrap();
-        assert!(status.is_active());
-
+        assert!(handle.get_status().await.unwrap().is_active());
         handle.shutdown(true).await.unwrap();
     }
 
     #[tokio::test]
-    async fn test_cold_turkey_shutdown_blocked_during_active() {
-        let hosts_temp = NamedTempFile::new().unwrap();
-        let socket_path = unique_path("sock");
-        let pid_path = unique_path("pid");
-        let config = dummy_config(hosts_temp.path(), &socket_path, &pid_path);
+    async fn cold_turkey_shutdown_blocked() {
+        let (handle, _hosts) = start_test_daemon(&["example.com"]).await;
 
-        let handle = run(config).await.unwrap();
+        handle
+            .start_session(Duration::from_secs(60))
+            .await
+            .unwrap();
 
-        handle.start_session(Duration::from_secs(60)).await.unwrap();
-
-        // Non-forced shutdown should be blocked
         let result = handle.shutdown(false).await;
-        assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), DaemonError::ShutdownBlocked(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            DaemonError::ShutdownBlocked(_)
+        ));
 
-        // Forced shutdown should work
         handle.shutdown(true).await.unwrap();
     }
 
     #[tokio::test]
-    async fn test_session_expires_and_removes_blocks() {
-        let hosts_temp = NamedTempFile::new().unwrap();
-        let socket_path = unique_path("sock");
-        let pid_path = unique_path("pid");
-        let config = dummy_config(hosts_temp.path(), &socket_path, &pid_path);
+    async fn session_expires_and_removes_blocks() {
+        let (handle, hosts) = start_test_daemon(&["example.com"]).await;
 
-        let handle = run(config).await.unwrap();
-
-        // Start a short session
         handle.start_session(Duration::from_secs(2)).await.unwrap();
 
-        // Verify blocks added
-        let content = std::fs::read_to_string(hosts_temp.path()).unwrap();
+        let content = std::fs::read_to_string(hosts.path()).unwrap();
         assert!(content.contains("example.com"));
 
-        // Wait for expiration
         tokio::time::sleep(Duration::from_secs(3)).await;
 
-        // Verify session is idle
-        let status = handle.get_status().await.unwrap();
-        assert!(!status.is_active());
+        assert!(!handle.get_status().await.unwrap().is_active());
 
-        // Verify blocks removed
-        let content = std::fs::read_to_string(hosts_temp.path()).unwrap();
+        let content = std::fs::read_to_string(hosts.path()).unwrap();
         assert!(!content.contains("example.com"));
 
         handle.shutdown(true).await.unwrap();
     }
 
     #[tokio::test]
-    async fn test_broadcast_subscription() {
-        let hosts_temp = NamedTempFile::new().unwrap();
-        let socket_path = unique_path("sock");
-        let pid_path = unique_path("pid");
-        let config = dummy_config(hosts_temp.path(), &socket_path, &pid_path);
+    async fn website_crud_through_handle() {
+        let (handle, _hosts) = start_test_daemon(&[]).await;
 
-        let handle = run(config).await.unwrap();
-        let mut subscriber = handle.subscribe();
+        assert!(handle.add_website("reddit.com".into()).await.unwrap());
+        assert!(handle.add_website("youtube.com".into()).await.unwrap());
+        assert!(!handle.add_website("reddit.com".into()).await.unwrap());
 
-        // Start session and receive broadcast
-        handle.start_session(Duration::from_secs(60)).await.unwrap();
+        let sites = handle.list_websites().await.unwrap();
+        assert_eq!(sites, vec!["reddit.com", "youtube.com"]);
 
-        // Subscriber might receive the initial Idle state first
-        let session = subscriber.recv().await.unwrap();
+        assert!(handle.remove_website("reddit.com".into()).await.unwrap());
+        assert!(!handle.remove_website("reddit.com".into()).await.unwrap());
+
+        let sites = handle.list_websites().await.unwrap();
+        assert_eq!(sites, vec!["youtube.com"]);
+
+        handle.shutdown(true).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn profile_crud() {
+        let (handle, _hosts) = start_test_daemon(&[]).await;
+
+        let profile = handle.create_profile("Work Focus".into()).await.unwrap();
+        assert_eq!(profile.name, "Work Focus");
+        assert!(profile.enabled);
+
+        let profiles = handle.list_profiles().await.unwrap();
+        assert_eq!(profiles.len(), 1);
+
+        let fetched = handle.get_profile(profile.id.clone()).await.unwrap();
+        assert!(fetched.is_some());
+        assert_eq!(fetched.unwrap().name, "Work Focus");
+
+        handle.delete_profile(profile.id).await.unwrap();
+        let profiles = handle.list_profiles().await.unwrap();
+        assert!(profiles.is_empty());
+
+        handle.shutdown(true).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn active_policy_includes_global_websites() {
+        let (handle, _hosts) = start_test_daemon(&[]).await;
+
+        handle.add_website("reddit.com".into()).await.unwrap();
+
+        let policy = handle.get_active_policy().await.unwrap();
+        assert!(policy.blocked_websites.contains(&"reddit.com".to_string()));
+
+        handle.shutdown(true).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn broadcast_subscription() {
+        let (handle, _hosts) = start_test_daemon(&["example.com"]).await;
+        let mut sub = handle.subscribe();
+
+        handle
+            .start_session(Duration::from_secs(60))
+            .await
+            .unwrap();
+
+        let session = sub.recv().await.unwrap();
         let session = if !session.is_active() {
-            subscriber.recv().await.unwrap()
+            sub.recv().await.unwrap()
         } else {
             session
         };
@@ -705,23 +1368,21 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_cleanup_removes_socket_file() {
-        let hosts_temp = NamedTempFile::new().unwrap();
+    async fn cleanup_removes_socket() {
+        let hosts = NamedTempFile::new().unwrap();
         let socket_path = unique_path("sock");
-        let pid_path = unique_path("pid");
-        let config = dummy_config(hosts_temp.path(), &socket_path, &pid_path);
+        let config = test_config(
+            hosts.path(),
+            &socket_path,
+            &unique_path("pid"),
+            &unique_path("db"),
+        );
 
         let handle = run(config).await.unwrap();
-
-        // Socket file should exist
         assert!(socket_path.exists());
 
         handle.shutdown(true).await.unwrap();
-
-        // Give cleanup a moment
         tokio::time::sleep(Duration::from_millis(100)).await;
-
-        // Socket file should be removed
         assert!(!socket_path.exists());
     }
 }

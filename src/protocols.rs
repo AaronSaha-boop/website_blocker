@@ -1,7 +1,11 @@
-// src/protocol.rs
+// src/protocols.rs
 
 use serde::{Serialize, Deserialize, de::DeserializeOwned};
 use thiserror::Error;
+
+use crate::db::{
+    ActivePolicy, BlockedApp, BlockedWebsite, DomRule, ManualSession, Profile, Schedule,
+};
 
 #[derive(Debug, PartialEq, Error)]
 pub enum ProtocolError {
@@ -17,16 +21,109 @@ pub enum ClientMessage {
     Start { duration: u64 },
     Stop,
     GetStatus,
+
+    // Profiles
+    CreateProfile { name: String },
+    GetProfile { id: String },
+    ListProfiles,
+    UpdateProfile { profile: Profile },
+    DeleteProfile { id: String },
+
+    // Schedules
+    CreateSchedule { schedule: Schedule },
+    GetSchedule { id: i64 },
+    ListSchedules { profile_id: String },
+    UpdateSchedule { schedule: Schedule },
+    DeleteSchedule { id: i64 },
+
+    // Blocked Websites (profile-specific)
+    CreateBlockedWebsite { website: BlockedWebsite },
+    ListBlockedWebsites { profile_id: String },
+    DeleteBlockedWebsite { id: i64 },
+
+    // Blocked Apps
+    CreateBlockedApp { app: BlockedApp },
+    GetBlockedApp { id: i64 },
+    ListBlockedApps { profile_id: String },
+    DeleteBlockedApp { id: i64 },
+
+    // DOM Rules
+    CreateDomRule { rule: DomRule },
+    GetDomRule { id: i64 },
+    ListDomRules { profile_id: String },
+    DeleteDomRule { id: i64 },
+
+    // Manual Sessions
+    CreateManualSession { session: ManualSession },
+    GetManualSession { id: i64 },
+    GetActiveManualSession,
+    ListManualSessions,
+    UpdateManualSession { session: ManualSession },
+
+    // Global Blocked Websites
+    AddGlobalWebsite { domain: String },
+    RemoveGlobalWebsite { domain: String },
+    ListGlobalWebsites,
+
+    // Active Policy
+    GetActivePolicy { current_day: String, current_time: String },
+
+    // Subscriptions
+    SubscribePolicyChanges,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum DaemonMessage {
     Pong,
     Started { duration: u64 },
-    StatusWithTime { time_left: u64 },
-    StatusIdle,
+    StatusWithTime { time_left: u64, sites: Vec<String> },
+    StatusIdle { sites: Vec<String> },
     Stopped,
     Error(String),
+
+    // Profiles
+    Profile(Profile),
+    ProfileList(Vec<Profile>),
+    ProfileUpdated,
+    ProfileDeleted,
+
+    // Schedules
+    Schedule(Schedule),
+    ScheduleList(Vec<Schedule>),
+    ScheduleUpdated,
+    ScheduleDeleted,
+
+    // Blocked Websites
+    BlockedWebsite(BlockedWebsite),
+    BlockedWebsiteList(Vec<BlockedWebsite>),
+    BlockedWebsiteDeleted,
+
+    // Blocked Apps
+    BlockedApp(BlockedApp),
+    BlockedAppList(Vec<BlockedApp>),
+    BlockedAppDeleted,
+
+    // DOM Rules
+    DomRule(DomRule),
+    DomRuleList(Vec<DomRule>),
+    DomRuleDeleted,
+
+    // Manual Sessions
+    ManualSession(Option<ManualSession>),
+    ManualSessionList(Vec<ManualSession>),
+    ManualSessionUpdated,
+
+    // Global Blocked Websites
+    GlobalWebsiteAdded(bool),
+    GlobalWebsiteRemoved(bool),
+    GlobalWebsiteList(Vec<String>),
+
+    // Active Policy
+    ActivePolicy(ActivePolicy),
+
+    // Push notifications (daemon -> subscriber)
+    PolicyChanged(ActivePolicy),
+    Subscribed,
 }
 
 pub fn encode<T: Serialize>(msg: &T) -> Result<Vec<u8>, ProtocolError> {
@@ -43,105 +140,111 @@ pub fn decode<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, ProtocolError> {
 mod tests {
     use super::*;
 
-    // ClientMessage tests
-    #[test]
-    fn ping_roundtrip() { 
-        // * Ping → encode → decode → equals Ping
-        let msg = ClientMessage::Ping;
+    fn roundtrip_client(msg: ClientMessage) {
         let bytes = encode(&msg).unwrap();
-        let decoded = decode::<ClientMessage>(&bytes).unwrap();
+        let decoded: ClientMessage = decode(&bytes).unwrap();
         assert_eq!(decoded, msg);
-     }
-
-    #[test]
-    fn start_roundtrip() { 
-        // * Start { duration: 10 } → encode → decode → equals Start { duration: 10 }
-        let msg = ClientMessage::Start { duration: 10 };
-        let bytes = encode(&msg).unwrap();
-        let decoded = decode::<ClientMessage>(&bytes).unwrap();
-        assert_eq!(decoded, msg);
-     }
-
-    #[test]
-    fn stop_roundtrip() { 
-        // * Stop → encode → decode → equals Stop
-        let msg = ClientMessage::Stop;
-        let bytes = encode(&msg).unwrap();
-        let decoded = decode::<ClientMessage>(&bytes).unwrap();
-        assert_eq!(decoded, msg);
-     }
-
-    #[test]
-    fn get_status_roundtrip() { 
-        // * GetStatus → encode → decode → equals GetStatus
-        let msg = ClientMessage::GetStatus;
-        let bytes = encode(&msg).unwrap();
-        let decoded = decode::<ClientMessage>(&bytes).unwrap();
-        assert_eq!(decoded, msg);
-     }
-
-    fn test_helper<T: Serialize + DeserializeOwned>(msg: &DaemonMessage) -> DaemonMessage {
-        let bytes = encode(msg).unwrap();
-        let decoded = decode::<DaemonMessage>(&bytes).unwrap();
-        decoded
     }
 
-    // DaemonMessage tests
-    #[test]
-    fn pong_roundtrip() { 
-        // * Pong → encode → decode → equals Pong
-        let msg = DaemonMessage::Pong;
-        let decoded = test_helper::<DaemonMessage>(&msg);
+    fn roundtrip_daemon(msg: DaemonMessage) {
+        let bytes = encode(&msg).unwrap();
+        let decoded: DaemonMessage = decode(&bytes).unwrap();
         assert_eq!(decoded, msg);
-     }
+    }
 
     #[test]
-    fn started_roundtrip() { 
-        // * Started { duration: 10 } → encode → decode → equals Started { duration: 10 }
-        let msg = DaemonMessage::Started { duration: 10 };
-        let decoded = test_helper::<DaemonMessage>(&msg);
-        assert_eq!(decoded, msg);
-     }
+    fn ping_roundtrip() { roundtrip_client(ClientMessage::Ping); }
 
     #[test]
-    fn status_with_time_roundtrip() { 
-        // * StatusWithTime { time_left: 10 } → encode → decode → equals StatusWithTime { time_left: 10 }
-        let msg = DaemonMessage::StatusWithTime { time_left: 10 };
-        let decoded = test_helper::<DaemonMessage>(&msg);
-        assert_eq!(decoded, msg);
-     }
+    fn start_roundtrip() { roundtrip_client(ClientMessage::Start { duration: 10 }); }
 
     #[test]
-    fn status_idle_roundtrip() { 
-        // * StatusIdle → encode → decode → equals StatusIdle
-        let msg = DaemonMessage::StatusIdle;
-        let decoded = test_helper::<DaemonMessage>(&msg);
-        assert_eq!(decoded, msg);
-     }
+    fn stop_roundtrip() { roundtrip_client(ClientMessage::Stop); }
 
     #[test]
-    fn stopped_roundtrip() { 
-        // * Stopped → encode → decode → equals Stopped
-        let msg = DaemonMessage::Stopped;
-        let decoded = test_helper::<DaemonMessage>(&msg);
-        assert_eq!(decoded, msg);
-     }
+    fn get_status_roundtrip() { roundtrip_client(ClientMessage::GetStatus); }
 
     #[test]
-    fn error_roundtrip() { 
-        // * Error("test") → encode → decode → equals Error("test")
-        let msg = DaemonMessage::Error("test".to_string());
-        let decoded = test_helper::<DaemonMessage>(&msg);
-        assert_eq!(decoded, msg);
-     }  
+    fn add_global_website_roundtrip() {
+        roundtrip_client(ClientMessage::AddGlobalWebsite { domain: "reddit.com".into() });
+    }
 
-    // Error cases
+    #[test]
+    fn remove_global_website_roundtrip() {
+        roundtrip_client(ClientMessage::RemoveGlobalWebsite { domain: "reddit.com".into() });
+    }
+
+    #[test]
+    fn list_global_websites_roundtrip() { roundtrip_client(ClientMessage::ListGlobalWebsites); }
+
+    #[test]
+    fn create_profile_roundtrip() {
+        roundtrip_client(ClientMessage::CreateProfile { name: "Work".into() });
+    }
+
+    #[test]
+    fn list_profiles_roundtrip() { roundtrip_client(ClientMessage::ListProfiles); }
+
+    #[test]
+    fn pong_roundtrip() { roundtrip_daemon(DaemonMessage::Pong); }
+
+    #[test]
+    fn started_roundtrip() { roundtrip_daemon(DaemonMessage::Started { duration: 10 }); }
+
+    #[test]
+    fn status_with_time_roundtrip() {
+        roundtrip_daemon(DaemonMessage::StatusWithTime {
+            time_left: 10,
+            sites: vec!["reddit.com".into()],
+        });
+    }
+
+    #[test]
+    fn status_idle_roundtrip() {
+        roundtrip_daemon(DaemonMessage::StatusIdle { sites: vec![] });
+    }
+
+    #[test]
+    fn stopped_roundtrip() { roundtrip_daemon(DaemonMessage::Stopped); }
+
+    #[test]
+    fn global_website_list_roundtrip() {
+        roundtrip_daemon(DaemonMessage::GlobalWebsiteList(
+            vec!["reddit.com".into(), "youtube.com".into()],
+        ));
+    }
+
+    #[test]
+    fn error_roundtrip() { roundtrip_daemon(DaemonMessage::Error("test".into())); }
+
+    #[test]
+    fn manual_session_none_roundtrip() {
+        roundtrip_daemon(DaemonMessage::ManualSession(None));
+    }
+
+    #[test]
+    fn active_policy_roundtrip() {
+        roundtrip_daemon(DaemonMessage::ActivePolicy(ActivePolicy::default()));
+    }
+
     #[test]
     fn decode_invalid_bytes_returns_error() {
-        // * Invalid bytes → decode → returns error
-        let bytes = vec![0x80, 0x01, 0x02];
-        let result = decode::<DaemonMessage>(&bytes);
+        let result = decode::<DaemonMessage>(&[0x80, 0x01, 0x02]);
         assert!(result.is_err());
-     }
-}
+    }
 
+    #[test]
+    fn subscribe_policy_changes_roundtrip() {
+        roundtrip_client(ClientMessage::SubscribePolicyChanges);
+    }
+
+    #[test]
+    fn policy_changed_roundtrip() {
+        roundtrip_daemon(DaemonMessage::PolicyChanged(ActivePolicy::default()));
+    }
+
+    #[test]
+    fn subscribed_roundtrip() {
+        roundtrip_daemon(DaemonMessage::Subscribed);
+    }
+}
