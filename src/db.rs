@@ -1177,7 +1177,7 @@ fn db_thread(conn: Connection, mut rx: mpsc::Receiver<DbCommand>) {
                 let result = (|| -> Result<ActivePolicy, DbError> {
                     let mut policy = ActivePolicy::default();
 
-                    // Get active profiles
+                    // Get active profiles (enabled + matching schedule, or enabled + no schedule = always on)
                     let pattern = format!("%\"{}%", current_day);
                     let mut profile_stmt = conn.prepare(
                         "SELECT DISTINCT p.id
