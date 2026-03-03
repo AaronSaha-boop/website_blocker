@@ -1,0 +1,21 @@
+/* Hide Reels — nav bar button, left sidebar link, and Reels posts in feed */
+
+/* Top nav bar Reels/Watch button */
+div[role="banner"] a[href="/reel/"],
+div[role="banner"] a[aria-label="Video"],
+div[role="banner"] a[aria-label="Watch"],
+div[role="banner"] a[href="/watch/"] {
+    display: none !important;
+}
+
+/* Left sidebar Reels link */
+div[role="navigation"] a[href*="/reel"],
+div[data-isanimatedlayout] a[href*="/reel"] {
+    display: none !important;
+}
+
+/* Reels posts in the newsfeed (short video carousels) */
+div[aria-label*="Reel"],
+div[aria-label*="reel"] {
+    display: none !important;
+}

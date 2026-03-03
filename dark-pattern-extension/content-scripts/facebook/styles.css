@@ -1,0 +1,23 @@
+/* content-scripts/facebook/styles.css */
+/* Facebook-specific hiding styles */
+
+/* Reels */
+a[href*="/reel/"],
+a[href*="/reels/"] {
+    display: none !important;
+}
+
+/* Marketplace */
+a[href*="/marketplace/"] {
+    display: none !important;
+}
+
+/* Watch */
+a[href*="/watch/"] {
+    display: none !important;
+}
+
+/* Gaming */
+a[href*="/gaming/"] {
+    display: none !important;
+}

@@ -1,0 +1,44 @@
+/* content-scripts/instagram/styles.css */
+/* Instagram-specific hiding styles */
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Reels
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Reels tab in navigation */
+a[href="/reels/"] {
+    display: none !important;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Explore
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Explore tab in navigation */
+a[href="/explore/"] {
+    display: none !important;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Threads promotion
+   ───────────────────────────────────────────────────────────────────────── */
+
+a[href*="threads.net"] {
+    display: none !important;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Grayscale mode (applied via JS toggle)
+   ───────────────────────────────────────────────────────────────────────── */
+
+html.dpb-grayscale {
+    filter: grayscale(100%);
+}
+
+html.dpb-grayscale img,
+html.dpb-grayscale video {
+    filter: grayscale(100%);
+}

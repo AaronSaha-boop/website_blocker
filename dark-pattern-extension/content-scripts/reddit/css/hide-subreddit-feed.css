@@ -1,0 +1,4 @@
+/* Hide the post feed on subreddit pages */
+body[route-name="subreddit"] shreddit-feed {
+    display: none !important;
+}

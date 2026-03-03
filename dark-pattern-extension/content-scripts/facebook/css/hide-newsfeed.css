@@ -1,0 +1,19 @@
+/* Hide the entire newsfeed while keeping the rest of the page */
+#ssrb_feed_start + div[role="feed"],
+#ssrb_feed_start + div,
+div[role="feed"] {
+    display: none !important;
+}
+
+/* Show a message so the page doesn't look broken */
+#ssrb_feed_start {
+    display: block !important;
+}
+#ssrb_feed_start::after {
+    content: "Newsfeed hidden by Dark Pattern Blocker";
+    color: var(--primary-text, #65676b);
+    display: block;
+    padding: 20px;
+    text-align: center;
+    font-size: 14px;
+}

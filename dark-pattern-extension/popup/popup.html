@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dark Pattern Blocker</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛡️ Dark Pattern Blocker</h1>
+        </header>
+
+        <section id="session-status" class="status-section">
+            <div id="status-idle" class="status">
+                <span class="status-dot idle"></span>
+                <span>Idle</span>
+            </div>
+            <div id="status-active" class="status hidden">
+                <span class="status-dot active"></span>
+                <span>Active: <span id="time-remaining">--:--</span></span>
+            </div>
+        </section>
+
+        <section class="quick-start">
+            <h2>Quick Start</h2>
+            <div class="duration-buttons">
+                <button class="btn" data-duration="1500">25 min</button>
+                <button class="btn" data-duration="2700">45 min</button>
+                <button class="btn" data-duration="3600">1 hour</button>
+                <button class="btn" data-duration="7200">2 hours</button>
+            </div>
+        </section>
+
+        <section class="site-toggles">
+            <h2>DOM Enforcement</h2>
+            <div class="toggle-list">
+                <label class="toggle">
+                    <input type="checkbox" id="toggle-youtube" checked>
+                    <span>YouTube</span>
+                </label>
+                <label class="toggle">
+                    <input type="checkbox" id="toggle-instagram" checked>
+                    <span>Instagram</span>
+                </label>
+                <label class="toggle">
+                    <input type="checkbox" id="toggle-twitter" checked>
+                    <span>Twitter/X</span>
+                </label>
+                <label class="toggle">
+                    <input type="checkbox" id="toggle-reddit" checked>
+                    <span>Reddit</span>
+                </label>
+                <label class="toggle">
+                    <input type="checkbox" id="toggle-facebook" checked>
+                    <span>Facebook</span>
+                </label>
+                <label class="toggle">
+                    <input type="checkbox" id="toggle-linkedin" checked>
+                    <span>LinkedIn</span>
+                </label>
+                <label class="toggle">
+                    <input type="checkbox" id="toggle-netflix" checked>
+                    <span>Netflix</span>
+                </label>
+            </div>
+        </section>
+
+        <footer>
+            <span id="daemon-status" class="daemon-status">
+                <span class="status-dot"></span>
+                Daemon: Checking...
+            </span>
+        </footer>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

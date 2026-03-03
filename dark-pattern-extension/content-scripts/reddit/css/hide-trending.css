@@ -1,0 +1,14 @@
+/* Hide trending searches inside the search dropdown */
+#reddit-trending-searches-partial-container {
+    display: none !important;
+}
+
+/* Trending label text */
+div.ml-md.mt-sm.mb-2xs.text-neutral-content-weak.flex.items-center {
+    display: none !important;
+}
+
+/* Trending separator border */
+div.w-full.border-solid.border-b-sm.border-t-0.border-r-0.border-l-0.border-neutral-border {
+    display: none !important;
+}

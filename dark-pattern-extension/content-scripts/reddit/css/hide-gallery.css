@@ -1,0 +1,4 @@
+/* Hide gallery carousels */
+shreddit-gallery-carousel {
+    display: none !important;
+}

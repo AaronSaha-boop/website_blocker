@@ -1,0 +1,12 @@
+/* youtube/grayscale.css - SAFE to load when grayscale=true */
+
+ytd-thumbnail img,
+yt-img-shadow img {
+    filter: grayscale(100%) !important;
+    transition: filter 0.3s ease !important;
+}
+
+ytd-thumbnail:hover img,
+yt-img-shadow:hover img {
+    filter: grayscale(0%) !important;
+}

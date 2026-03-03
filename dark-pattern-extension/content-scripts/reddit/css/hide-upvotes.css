@@ -1,0 +1,4 @@
+/* Hide upvote/downvote buttons */
+[slot="vote-button"] {
+    display: none !important;
+}

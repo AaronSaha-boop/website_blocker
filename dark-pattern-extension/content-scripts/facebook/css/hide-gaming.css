@@ -1,0 +1,22 @@
+/* Hide Gaming — nav bar, left sidebar, right sidebar game requests */
+
+/* Top nav bar Gaming button */
+div[role="banner"] a[href*="/gaming/"],
+div[role="banner"] a[aria-label="Gaming"] {
+    display: none !important;
+}
+
+/* Left sidebar gaming links */
+div[role="navigation"] a[href*="/gaming/"],
+div[data-isanimatedlayout] a[href*="/gaming/play"],
+div[data-isanimatedlayout] a[href*="/instantgames/"] {
+    display: none !important;
+}
+
+/* Right sidebar game/app requests */
+div[aria-label*="Game requests"],
+div[aria-label*="game requests"],
+div[aria-label*="Instant Games"],
+div[data-gamesrankedimp] {
+    display: none !important;
+}

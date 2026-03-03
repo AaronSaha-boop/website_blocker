@@ -1,0 +1,18 @@
+/* content-scripts/netflix/styles.css */
+/* Netflix-specific hiding styles */
+
+/* Disable preview videos on billboard */
+.billboard-row video,
+.jawBone video {
+    display: none !important;
+}
+
+/* Hide "More Like This" section */
+.moreLikeThis {
+    display: none !important;
+}
+
+/* Hide "Because you watched" rows */
+.rowHeader:has-text("Because you watched") {
+    display: none !important;
+}

@@ -1,0 +1,4 @@
+/* Hide Popular link and posts section */
+#popular-posts {
+    display: none !important;
+}

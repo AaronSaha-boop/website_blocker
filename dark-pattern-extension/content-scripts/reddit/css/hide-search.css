@@ -1,0 +1,4 @@
+/* Hide the search bar */
+reddit-search-large {
+    display: none !important;
+}

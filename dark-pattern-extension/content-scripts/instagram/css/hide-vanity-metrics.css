@@ -1,0 +1,11 @@
+/* instagram/hide-vanity-metrics.css */
+
+/* Like counts on posts */
+button._a9ze {
+    visibility: hidden !important;
+}
+
+/* Follower/following counts on profiles */
+span._ac2a {
+    visibility: hidden !important;
+}

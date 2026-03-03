@@ -1,0 +1,23 @@
+/* Hide Marketplace — nav bar, left sidebar, right sidebar boxes */
+
+/* Top nav bar Marketplace button */
+div[role="banner"] a[href="/marketplace/"],
+div[role="banner"] a[aria-label="Marketplace"] {
+    display: none !important;
+}
+
+/* Left sidebar Marketplace link */
+div[role="navigation"] a[href*="/marketplace"],
+div[data-isanimatedlayout] a[href*="/marketplace"] {
+    display: none !important;
+}
+
+/* Right sidebar marketplace boxes (recently viewed, top picks, etc) */
+#pagelet_marketplace_rental_rhc,
+#pagelet_group_marketplace_rental_rhc,
+#pagelet_marketplace_recently_viewed_candidate_rhc,
+#pagelet_marketplace_recently_viewed_rhc,
+#pagelet_marketplace_new_user_vehicle_rhc,
+#pagelet_marketplace_bsg_recently_viewed_rhc {
+    display: none !important;
+}

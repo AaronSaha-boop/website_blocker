@@ -1,0 +1,14 @@
+/* instagram/hide-stories.css - SAFE to load when hideStories=true */
+/* NOTE: Instagram stories are tricky - selectors may need updates */
+
+/* Stories tray - uses aria-label when available */
+div[aria-label*="Stories" i],
+div[aria-label*="Story" i] {
+    display: none !important;
+}
+
+/* Alternative: hide section with story circles (canvas elements) */
+/* This is less precise but more resilient */
+main section:first-child > div:first-child:has(canvas) {
+    display: none !important;
+}

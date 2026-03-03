@@ -1,0 +1,4 @@
+/* Hide community highlight carousels */
+community-highlight-carousel {
+    display: none !important;
+}

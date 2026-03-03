@@ -1,0 +1,5 @@
+/* Hide Groups button in top navigation bar */
+div[role="banner"] a[href="/groups/"],
+div[role="banner"] a[aria-label="Groups"] {
+    display: none !important;
+}

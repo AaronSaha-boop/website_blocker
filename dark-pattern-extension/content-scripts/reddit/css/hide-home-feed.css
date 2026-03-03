@@ -1,0 +1,4 @@
+/* Hide the algorithmic home feed (not subreddit feeds) */
+body:not([route-name="subreddit"]):not([route-name="comments"]):not([route-name="profile"]) shreddit-feed {
+    display: none !important;
+}

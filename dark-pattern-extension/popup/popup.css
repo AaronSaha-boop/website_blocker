@@ -1,0 +1,188 @@
+/* popup/popup.css */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    background: #1a1a2e;
+    color: #eee;
+    min-width: 300px;
+}
+
+.container {
+    padding: 16px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Header
+   ───────────────────────────────────────────────────────────────────────── */
+
+header {
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+header h1 {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Status Section
+   ───────────────────────────────────────────────────────────────────────── */
+
+.status-section {
+    background: #252542;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.status-dot.idle {
+    background: #666;
+}
+
+.status-dot.active {
+    background: #4ade80;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Quick Start
+   ───────────────────────────────────────────────────────────────────────── */
+
+.quick-start h2,
+.site-toggles h2 {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #888;
+    margin-bottom: 8px;
+}
+
+.duration-buttons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.btn {
+    background: #333355;
+    border: none;
+    border-radius: 6px;
+    color: #fff;
+    padding: 10px 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn:hover {
+    background: #444477;
+}
+
+.btn:active {
+    background: #5555aa;
+}
+
+.btn:disabled {
+    background: #222;
+    color: #666;
+    cursor: not-allowed;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Site Toggles
+   ───────────────────────────────────────────────────────────────────────── */
+
+.toggle-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: #252542;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.toggle:hover {
+    background: #303055;
+}
+
+.toggle input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #6366f1;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Footer
+   ───────────────────────────────────────────────────────────────────────── */
+
+footer {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid #333;
+    text-align: center;
+}
+
+.daemon-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #888;
+}
+
+.daemon-status .status-dot {
+    width: 8px;
+    height: 8px;
+}
+
+.daemon-status.connected .status-dot {
+    background: #4ade80;
+}
+
+.daemon-status.disconnected .status-dot {
+    background: #f87171;
+}

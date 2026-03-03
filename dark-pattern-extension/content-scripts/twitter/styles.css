@@ -1,0 +1,18 @@
+/* content-scripts/twitter/styles.css */
+/* Twitter/X-specific hiding styles */
+
+/* Promoted tweets indicator */
+[data-testid="placementTracking"] {
+    display: none !important;
+}
+
+/* Explore tab */
+a[href="/explore"] {
+    display: none !important;
+}
+
+/* Premium/Blue upsells */
+a[href="/i/premium_sign_up"],
+a[href*="twitter_blue"] {
+    display: none !important;
+}

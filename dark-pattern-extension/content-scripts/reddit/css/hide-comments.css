@@ -1,0 +1,4 @@
+/* Hide comment sections */
+shreddit-comment {
+    display: none !important;
+}

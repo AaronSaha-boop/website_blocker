@@ -1,0 +1,4 @@
+/* Hide Games section badge in sidebar */
+games-section-badge-controller {
+    display: none !important;
+}

@@ -1,0 +1,4 @@
+/* Hide subreddit info panel in right sidebar */
+#subreddit-right-rail__partial {
+    display: none !important;
+}

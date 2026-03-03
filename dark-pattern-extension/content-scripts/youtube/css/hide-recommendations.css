@@ -1,0 +1,13 @@
+/* youtube/hide-recommendations.css - SAFE to load when hideRecommendations=true */
+
+/* Sidebar recommendations on watch page */
+#secondary,
+#related,
+ytd-watch-next-secondary-results-renderer {
+    display: none !important;
+}
+
+/* Expand video player when sidebar hidden */
+ytd-watch-flexy[flexy] #primary {
+    max-width: 100% !important;
+}

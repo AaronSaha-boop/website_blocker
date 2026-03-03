@@ -1,0 +1,19 @@
+/* youtube/hide-end-cards.css - SAFE to load when hideEndCards=true */
+
+/* End screen overlays */
+.ytp-ce-element,
+.ytp-ce-covering-overlay,
+.ytp-ce-covering-image {
+    display: none !important;
+}
+
+/* End screen content */
+.ytp-endscreen-content {
+    display: none !important;
+}
+
+/* Info cards during video */
+.ytp-cards-teaser,
+.ytp-cards-button {
+    display: none !important;
+}

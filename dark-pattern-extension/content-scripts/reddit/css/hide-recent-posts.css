@@ -1,0 +1,4 @@
+/* Hide recent/top posts widget in right sidebar */
+recent-posts {
+    display: none !important;
+}

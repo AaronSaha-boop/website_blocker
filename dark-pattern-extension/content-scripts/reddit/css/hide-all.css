@@ -1,0 +1,4 @@
+/* Hide r/All posts section */
+#all-posts {
+    display: none !important;
+}

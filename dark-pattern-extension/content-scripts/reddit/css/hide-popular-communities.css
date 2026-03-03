@@ -1,0 +1,4 @@
+/* Hide popular communities widget in right sidebar */
+[aria-label="Popular Communities"] {
+    display: none !important;
+}

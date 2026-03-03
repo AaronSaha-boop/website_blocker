@@ -1,0 +1,4 @@
+/* Hide recently visited subreddits in sidebar */
+reddit-recent-pages {
+    display: none !important;
+}

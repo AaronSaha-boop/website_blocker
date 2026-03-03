@@ -1,0 +1,7 @@
+/* Hide Messenger button in top navigation bar */
+div[role="banner"] div[aria-label="Messenger"],
+div[role="banner"] a[aria-label="Messenger"],
+div[role="banner"] a[aria-label^="Messenger"],
+#pagelet_bluebar a[name="mercurymessages"] {
+    display: none !important;
+}

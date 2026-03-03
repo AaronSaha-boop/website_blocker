@@ -1,0 +1,11 @@
+/* instagram/hide-explore.css - SAFE to load when hideExplore=true */
+
+/* Explore button in navigation - target by href */
+a[href="/explore/"] {
+    display: none !important;
+}
+
+/* Explore link in side nav */
+nav a[href="/explore/"] {
+    display: none !important;
+}

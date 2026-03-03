@@ -1,0 +1,23 @@
+/* Hide People You May Know, Suggested for You, Suggested Posts */
+
+/* PYMK boxes in feed and sidebar */
+div[aria-label="People You May Know"],
+div[aria-label="People you may know"],
+div[data-pagelet*="PYMK"],
+#fbRequestsPYMKContainer,
+#endOfFeedPymlContainer,
+#fbRequestsPYMLContainer {
+    display: none !important;
+}
+
+/* Suggested posts / join / follow in feed */
+div[aria-label*="Suggested for you"],
+div[aria-label*="suggested for you"] {
+    display: none !important;
+}
+
+/* Suggested groups in sidebar */
+div[aria-label*="Suggested groups"],
+div[aria-label*="Groups you might like"] {
+    display: none !important;
+}
