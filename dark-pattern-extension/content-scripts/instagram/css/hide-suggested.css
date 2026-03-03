@@ -1,0 +1,12 @@
+/* instagram/hide-suggested.css */
+
+/* Hides the "Suggested for you" sidebar box */
+div[data-testid="suggested_users"] {
+    display: none !important;
+}
+
+/* Hides "Suggested posts" that appear in the feed. */
+/* Instagram makes these hard to select. This looks for the heading. */
+article h2:is(:has-text("Suggested for you"), :has-text("Suggested Posts")) {
+    display: none !important;
+}

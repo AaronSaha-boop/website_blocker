@@ -1,0 +1,4 @@
+/* Hide the entire right sidebar */
+#right-sidebar-contents {
+    display: none !important;
+}

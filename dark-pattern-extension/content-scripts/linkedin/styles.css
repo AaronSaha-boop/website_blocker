@@ -1,0 +1,18 @@
+/* content-scripts/linkedin/styles.css */
+/* LinkedIn-specific hiding styles */
+
+/* Promoted posts */
+.feed-shared-actor__sub-description:has-text("Promoted") {
+    display: none !important;
+}
+
+/* Premium upsells */
+.premium-upsell,
+a[href*="premium"] {
+    display: none !important;
+}
+
+/* Notification badge */
+.notification-badge {
+    display: none !important;
+}

@@ -1,0 +1,25 @@
+/* youtube/hide-shorts.css - SAFE to load when hideShorts=true */
+
+/* Shorts shelf on homepage */
+ytd-rich-shelf-renderer[is-shorts],
+ytd-reel-shelf-renderer,
+ytd-rich-section-renderer:has(ytd-rich-shelf-renderer[is-shorts]) {
+    display: none !important;
+}
+
+/* Shorts in sidebar navigation */
+ytd-guide-entry-renderer:has(a[title="Shorts"]),
+ytd-mini-guide-entry-renderer[aria-label="Shorts"] {
+    display: none !important;
+}
+
+/* Shorts in search results */
+ytd-video-renderer:has(a[href^="/shorts/"]),
+ytd-rich-item-renderer:has(a[href^="/shorts/"]) {
+    display: none !important;
+}
+
+/* Shorts tab on channels */
+yt-tab-shape[tab-title="Shorts"] {
+    display: none !important;
+}

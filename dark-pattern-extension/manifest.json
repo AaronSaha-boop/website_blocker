@@ -1,0 +1,105 @@
+{
+  "manifest_version": 3,
+  "name": "Dark Pattern Blocker",
+  "description": "Block addictive UI patterns and enforce focus sessions",
+  "version": "0.1.0",
+  "default_locale": "en",
+
+  "icons": {
+    "16": "assets/icons/icon-16.png",
+    "48": "assets/icons/icon-48.png",
+    "128": "assets/icons/icon-128.png"
+  },
+
+  "permissions": [
+    "storage",
+    "nativeMessaging",
+    "tabs",
+    "scripting"
+  ],
+
+  "host_permissions": [
+    "*://*.instagram.com/*",
+    "*://*.youtube.com/*",
+    "*://*.twitter.com/*",
+    "*://*.x.com/*",
+    "*://*.reddit.com/*",
+    "*://*.facebook.com/*",
+    "*://*.linkedin.com/*",
+    "*://*.netflix.com/*"
+  ],
+
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "assets/icons/icon-16.png",
+      "48": "assets/icons/icon-48.png",
+      "128": "assets/icons/icon-128.png"
+    }
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["*://*.instagram.com/*"],
+      "js": ["content-scripts/shared/base.js", "content-scripts/instagram/content.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["content-scripts/shared/base.js", "content-scripts/youtube/content.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    },
+    {
+      "matches": ["*://*.twitter.com/*", "*://*.x.com/*"],
+      "js": ["content-scripts/shared/base.js", "content-scripts/twitter/content.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["*://*.reddit.com/*"],
+      "js": ["content-scripts/shared/base.js", "content-scripts/reddit/content.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["*://*.facebook.com/*"],
+      "js": ["content-scripts/shared/base.js", "content-scripts/facebook/content.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["*://*.linkedin.com/*"],
+      "js": ["content-scripts/shared/base.js", "content-scripts/linkedin/content.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["*://*.netflix.com/*"],
+      "js": ["content-scripts/shared/base.js", "content-scripts/netflix/content.js"],
+      "run_at": "document_start"
+    }
+  ],
+
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "blocked/blocked.html",
+        "blocked/blocked.css",
+        "assets/*",
+        "content-scripts/shared/base.css",
+        "content-scripts/instagram/css/*.css",
+        "content-scripts/youtube/css/*.css",
+        "content-scripts/twitter/styles.css",
+        "content-scripts/reddit/styles.css",
+        "content-scripts/reddit/css/*.css",
+        "content-scripts/facebook/styles.css",
+        "content-scripts/facebook/css/*.css",
+        "content-scripts/linkedin/styles.css",
+        "content-scripts/netflix/styles.css"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

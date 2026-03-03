@@ -1,0 +1,4 @@
+/* Hide just the vote count numbers, keep the buttons */
+faceplate-number {
+    visibility: hidden !important;
+}

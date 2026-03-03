@@ -1,0 +1,6 @@
+/* youtube/hide-comments.css - SAFE to load when hideComments=true */
+
+#comments,
+ytd-comments {
+    display: none !important;
+}

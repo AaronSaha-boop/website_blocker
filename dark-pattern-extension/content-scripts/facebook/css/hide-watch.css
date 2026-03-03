@@ -1,0 +1,23 @@
+/* Hide Watch — nav bar button, left sidebar link, right sidebar boxes */
+
+/* Top nav bar Watch/Video button */
+div[role="banner"] a[href="/watch/"],
+div[role="banner"] a[aria-label="Watch"],
+div[role="banner"] a[aria-label="Video"] {
+    display: none !important;
+}
+
+/* Left sidebar Watch link */
+div[role="navigation"] a[href*="/watch"],
+div[data-isanimatedlayout] a[href*="/watch"] {
+    display: none !important;
+}
+
+/* Right sidebar watch/video boxes */
+#pagelet_video_home_suggested_for_you_rhc,
+#pagelet_video_home_promotion_rhc,
+div[aria-label*="Watchlist"],
+div[aria-label*="Videos from Facebook Watch"],
+div[aria-label*="Continue Watching"] {
+    display: none !important;
+}

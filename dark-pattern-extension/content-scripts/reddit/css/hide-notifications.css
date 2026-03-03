@@ -1,0 +1,4 @@
+/* Hide notifications inbox button */
+#notifications-inbox-button {
+    display: none !important;
+}

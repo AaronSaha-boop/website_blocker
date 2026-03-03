@@ -1,0 +1,26 @@
+/* youtube/hide-home-feed.css - SAFE to load when hideHomeFeed=true */
+/* NOTE: Only hides on homepage, not everywhere */
+
+/* Only target homepage feed */
+ytd-browse[page-subtype="home"] ytd-rich-grid-renderer {
+    visibility: hidden !important;
+    height: 200px !important;
+    overflow: hidden !important;
+}
+
+/* Show a message instead of blank space */
+ytd-browse[page-subtype="home"] ytd-rich-grid-renderer::before {
+    content: "Home feed hidden. Use Search or go to Subscriptions.";
+    visibility: visible !important;
+    display: block;
+    text-align: center;
+    padding: 80px 20px;
+    color: #aaa;
+    font-size: 16px;
+}
+
+/* Hide chip bar on homepage */
+ytd-browse[page-subtype="home"] #chips-wrapper,
+ytd-browse[page-subtype="home"] ytd-feed-filter-chip-bar-renderer {
+    display: none !important;
+}

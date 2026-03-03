@@ -1,0 +1,4 @@
+/* Hide Explore communities section */
+#explore-communities {
+    display: none !important;
+}

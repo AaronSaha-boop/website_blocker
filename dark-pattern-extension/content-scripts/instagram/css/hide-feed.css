@@ -1,0 +1,7 @@
+main[role="main"] > section > div:nth-child(2) {
+    display: none !important;
+}
+
+main > section article {
+    display: none !important;
+}

@@ -1,0 +1,10 @@
+{
+    "extensionName": {
+        "message": "Dark Pattern Blocker",
+        "description": "Name of the extension"
+    },
+    "extensionDescription": {
+        "message": "Block addictive UI patterns and enforce focus sessions",
+        "description": "Description of the extension"
+    }
+}

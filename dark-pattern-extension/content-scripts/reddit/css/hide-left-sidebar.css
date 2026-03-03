@@ -1,0 +1,4 @@
+/* Hide the entire left navigation sidebar */
+#left-sidebar {
+    display: none !important;
+}

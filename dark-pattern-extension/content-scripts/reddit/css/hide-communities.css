@@ -1,0 +1,4 @@
+/* Hide communities section in sidebar */
+#communities_section {
+    display: none !important;
+}

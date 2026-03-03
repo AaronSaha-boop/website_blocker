@@ -1,0 +1,7 @@
+/* Hide Meta AI link in left sidebar and AI chat prompts */
+div[role="navigation"] a[href*="/ai"],
+div[data-isanimatedlayout] a[href*="/ai"],
+div[role="navigation"] a[aria-label*="Meta AI"],
+div[aria-label*="Meta AI"] {
+    display: none !important;
+}

@@ -1,0 +1,11 @@
+/* instagram/hide-reels.css - SAFE to load when hideReels=true */
+
+/* Reels button in navigation - target by href */
+a[href="/reels/"] {
+    display: none !important;
+}
+
+/* Reels link in side nav */
+nav a[href="/reels/"] {
+    display: none !important;
+}

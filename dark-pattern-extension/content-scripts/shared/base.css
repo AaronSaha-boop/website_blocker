@@ -1,0 +1,45 @@
+/* content-scripts/shared/base.css */
+/* Shared utility classes for hiding elements */
+
+/* Generic hide class */
+.dpb-hidden {
+    display: none !important;
+}
+
+/* Hide but keep in layout (avoid layout shift) */
+.dpb-invisible {
+    visibility: hidden !important;
+}
+
+/* Grayscale effect */
+.dpb-grayscale {
+    filter: grayscale(100%) !important;
+}
+
+/* Blur effect for spoilers/distractions */
+.dpb-blur {
+    filter: blur(10px) !important;
+    pointer-events: none !important;
+}
+
+/* Fade out effect */
+.dpb-fade {
+    opacity: 0.3 !important;
+}
+
+/* Remove infinite scroll - force finite height */
+.dpb-no-scroll {
+    max-height: 100vh !important;
+    overflow: hidden !important;
+}
+
+/* Disable autoplay */
+video.dpb-no-autoplay {
+    autoplay: false !important;
+}
+
+/* Block pointer events (prevent interaction) */
+.dpb-no-interact {
+    pointer-events: none !important;
+    user-select: none !important;
+}

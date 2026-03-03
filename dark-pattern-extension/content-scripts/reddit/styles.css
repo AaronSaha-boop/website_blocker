@@ -1,0 +1,18 @@
+/* content-scripts/reddit/styles.css */
+/* Reddit-specific hiding styles */
+
+/* Promoted posts */
+[data-promoted="true"],
+.promotedlink {
+    display: none !important;
+}
+
+/* Award icons */
+.awarding-icon-container {
+    display: none !important;
+}
+
+/* Premium upsells */
+a[href*="premium"] {
+    display: none !important;
+}

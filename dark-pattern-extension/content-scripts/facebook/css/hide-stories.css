@@ -1,0 +1,19 @@
+/* Hide Stories — tray above feed, "Your Story" prompt, stories posts */
+
+/* Stories tray / carousel at top of feed */
+div[aria-label="Stories"],
+div[data-pagelet="Stories"] {
+    display: none !important;
+}
+
+/* "Create Story" card and "Your Story" in status composer area */
+div[aria-label="Create a story"],
+div[aria-label*="Your story"],
+div[aria-label*="Your Story"] {
+    display: none !important;
+}
+
+/* "Add to your story" prompt in photo upload */
+div[aria-label*="Add this photo to your story"] {
+    display: none !important;
+}

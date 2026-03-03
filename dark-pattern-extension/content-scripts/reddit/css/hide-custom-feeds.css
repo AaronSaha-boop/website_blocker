@@ -1,0 +1,4 @@
+/* Hide custom feeds / multireddits section in sidebar */
+#multireddits_section {
+    display: none !important;
+}

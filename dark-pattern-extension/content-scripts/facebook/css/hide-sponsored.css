@@ -1,0 +1,24 @@
+/* Hide Sponsored posts, ads, and promotional content in feed and sidebar */
+
+/* Sidebar ad containers */
+#pagelet_ego_pane,
+#pagelet_ads,
+#pagelet_ads_when_no_friend_list_suggestion,
+#pagelet_side_ads,
+#pagelet_netego_ads,
+#sidebar_ads,
+#adcolumn_advertise,
+.fbPhotosSideColumn,
+.fbTimelineSideAds,
+div[data-ad],
+div[data-ad^="{"] {
+    display: none !important;
+}
+
+/* Right rail sponsored link labels */
+div[role="complementary"] a[aria-labelledby][href^="https://l.facebook.com"],
+div[role="main"]+div[role="complementary"] a[aria-labelledby][href][target="_blank"],
+a[aria-label="Advertiser"],
+span[aria-labelledby] {
+    display: none !important;
+}
