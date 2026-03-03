@@ -67,6 +67,9 @@ pub enum ClientMessage {
 
     // Active Policy
     GetActivePolicy { current_day: String, current_time: String },
+
+    // Subscriptions
+    SubscribePolicyChanges,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -117,6 +120,10 @@ pub enum DaemonMessage {
 
     // Active Policy
     ActivePolicy(ActivePolicy),
+
+    // Subscriptions / Push
+    Subscribed,
+    PolicyChanged(ActivePolicy),
 }
 
 pub fn encode<T: Serialize>(msg: &T) -> Result<Vec<u8>, ProtocolError> {

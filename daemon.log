@@ -1,0 +1,930 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.27s
+     Running `target/debug/dark-pattern daemon`
+get_current_policy
+[db] get_active_policy: day=tue, time=15:12
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:12
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:13
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:14
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:15
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:16
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:17
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:18
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:19
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:20
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:21
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:22
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:23
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:24
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:25
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:26
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:27
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:28
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:29
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:30
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:31
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:32
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:33
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:51
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:55
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:56
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:57
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:58
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=15:59
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=16:00
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=16:01
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=16:02
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=16:03
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=16:04
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=16:05
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=16:06
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=16:07
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=16:08
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=16:09
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=16:10
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=16:11
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=16:14
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=16:15
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=18:12
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=18:13
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=18:54
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:03
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:07
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:08
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:09
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:10
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:11
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:12
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:13
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:14
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:15
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:16
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:17
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:21
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:22
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:23
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:24
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:25
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:26
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:27
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:28
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:29
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:30
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:31
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:32
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:33
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:34
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:35
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:36
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:37
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:38
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:39
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:40
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:41
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:42
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:43
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:44
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:45
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:46
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:47
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:48
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:49
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:50
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:51
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:52
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:53
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:54
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:55
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:56
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:57
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:58
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=19:59
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:00
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:01
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:02
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:03
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:04
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:05
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:06
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:07
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:08
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:16
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:17
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:18
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:19
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:20
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:21
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:22
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:23
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:24
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:25
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:26
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:27
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:28
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:29
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:30
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:31
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:32
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:33
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:34
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:35
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:36
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:37
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:38
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:39
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:40
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:41
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:42
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:43
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:44
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:45
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:46
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:47
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:48
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:49
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:50
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:51
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:52
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:53
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:54
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:55
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:56
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:57
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:58
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=20:59
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=21:15
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=22:09
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=22:25
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=22:41
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=22:42
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=22:43
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=22:44
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=22:45
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=22:46
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=22:47
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=22:48
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=22:49
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=22:50
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=22:51
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=22:52
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=22:53
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=23:09
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=23:12
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=23:13
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=23:14
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=23:23
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=tue, time=23:24
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=01:24
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=02:48
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=03:52
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=04:07
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=05:20
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=05:21
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=06:56
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=06:57
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=07:21
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=07:22
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=08:22
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=08:23
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=09:23
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=09:24
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=10:24
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=10:25
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=10:54
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=10:55
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=10:56
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=10:57
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=10:58
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=10:59
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:00
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:01
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:02
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:03
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:04
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:05
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:06
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:07
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:08
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:09
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:10
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:11
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:12
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:13
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:14
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:15
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:20
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:21
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:22
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:23
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:24
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:25
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:26
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:27
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:28
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:29
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:30
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:31
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:32
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:33
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:34
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:35
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:36
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:37
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:38
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:39
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:40
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }
+get_current_policy
+[db] get_active_policy: day=wed, time=11:41
+[db] active profile IDs: []
+[db] final policy: ActivePolicy { blocked_websites: [], blocked_apps: [], dom_rules: [] }

@@ -186,6 +186,10 @@ pub enum Command {
     GetActivePolicy {
         reply: oneshot::Sender<Result<ActivePolicy, DaemonError>>,
     },
+
+    // Notify the actor that a mutation happened (from socket dispatch)
+    // so it can recompute and broadcast the policy.
+    PolicyMaybeChanged,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -401,6 +405,45 @@ impl DaemonHandle {
             .map_err(|e| DaemonError::Actor(e.to_string()))?
     }
 
+    // ── Profile blocked websites ─────────────────────────────────────────────
+
+    pub async fn add_profile_website(&self, profile_id: String, domain: String) -> Result<BlockedWebsite, DaemonError> {
+        let (reply_tx, reply_rx) = oneshot::channel();
+        self.tx
+            .send(Command::AddProfileWebsite { profile_id, domain, reply: reply_tx })
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?;
+        reply_rx
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?
+    }
+
+    // ── Profile blocked apps ──────────────────────────────────────────────────
+
+    pub async fn add_profile_app(&self, profile_id: String, app_identifier: String) -> Result<BlockedApp, DaemonError> {
+        let (reply_tx, reply_rx) = oneshot::channel();
+        self.tx
+            .send(Command::AddProfileApp { profile_id, app_identifier, reply: reply_tx })
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?;
+        reply_rx
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?
+    }
+
+    // ── DOM rules ─────────────────────────────────────────────────────────────
+
+    pub async fn add_dom_rule(&self, profile_id: String, site: String, toggle: String) -> Result<DomRule, DaemonError> {
+        let (reply_tx, reply_rx) = oneshot::channel();
+        self.tx
+            .send(Command::AddDomRule { profile_id, site, toggle, reply: reply_tx })
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?;
+        reply_rx
+            .await
+            .map_err(|e| DaemonError::Actor(e.to_string()))?
+    }
+
     // ── Active policy ────────────────────────────────────────────────────────
 
     pub async fn get_active_policy(&self) -> Result<ActivePolicy, DaemonError> {
@@ -423,6 +466,7 @@ pub struct DaemonActor {
     rx: mpsc::Receiver<Command>,
     cmd_tx: mpsc::Sender<Command>,
     session_tx: broadcast::Sender<Session>,
+    policy_tx: broadcast::Sender<ActivePolicy>,
     config: Config,
     db: DbHandle,
     socket_server: SocketServer,
@@ -437,6 +481,7 @@ impl DaemonActor {
         rx: mpsc::Receiver<Command>,
         cmd_tx: mpsc::Sender<Command>,
         session_tx: broadcast::Sender<Session>,
+        policy_tx: broadcast::Sender<ActivePolicy>,
         config: Config,
     ) -> Result<Self, DaemonError> {
         let socket_server = SocketServer::bind(&config.socket_path).await?;
@@ -447,6 +492,7 @@ impl DaemonActor {
             rx,
             cmd_tx,
             session_tx,
+            policy_tx,
             config,
             db,
             socket_server,
@@ -483,8 +529,9 @@ impl DaemonActor {
                         Ok(conn) => {
                             let tx = self.cmd_tx.clone();
                             let db = self.db.clone();
+                            let policy_rx = self.policy_tx.subscribe();
                             tokio::spawn(async move {
-                                if let Err(e) = handle_connection(conn, tx, db).await {
+                                if let Err(e) = handle_connection(conn, tx, db, policy_rx).await {
                                     eprintln!("Connection error: {}", e);
                                 }
                             });
@@ -535,6 +582,7 @@ impl DaemonActor {
                     .await
                     .map_err(DaemonError::from);
                 let _ = reply.send(result);
+                self.broadcast_policy_if_changed().await;
             }
 
             Command::RemoveWebsite { url, reply } => {
@@ -544,6 +592,7 @@ impl DaemonActor {
                     .await
                     .map_err(DaemonError::from);
                 let _ = reply.send(result);
+                self.broadcast_policy_if_changed().await;
             }
 
             Command::ListWebsites { reply } => {
@@ -555,9 +604,113 @@ impl DaemonActor {
                 let _ = reply.send(result);
             }
 
-            // All other commands are handled directly by the dispatch function
-            // via DbHandle (they don't need actor state).
-            _ => {}
+            // ── Profile commands ──────────────────────────────────────────
+
+            Command::CreateProfile { name, reply } => {
+                let result = self.db.create_profile(name).await.map_err(DaemonError::from);
+                let _ = reply.send(result);
+                self.broadcast_policy_if_changed().await;
+            }
+            Command::GetProfile { id, reply } => {
+                let result = self.db.get_profile(id).await.map_err(DaemonError::from);
+                let _ = reply.send(result);
+            }
+            Command::ListProfiles { reply } => {
+                let result = self.db.list_profiles().await.map_err(DaemonError::from);
+                let _ = reply.send(result);
+            }
+            Command::UpdateProfile { profile, reply } => {
+                let result = self.db.update_profile(profile).await.map_err(DaemonError::from);
+                let _ = reply.send(result);
+                self.broadcast_policy_if_changed().await;
+            }
+            Command::DeleteProfile { id, reply } => {
+                let result = self.db.delete_profile(id).await.map_err(DaemonError::from);
+                let _ = reply.send(result);
+                self.broadcast_policy_if_changed().await;
+            }
+
+            // ── Schedule commands ─────────────────────────────────────────
+
+            Command::CreateSchedule { schedule, reply } => {
+                let result = self.db.create_schedule(schedule).await.map_err(DaemonError::from);
+                let _ = reply.send(result);
+                self.broadcast_policy_if_changed().await;
+            }
+            Command::ListSchedules { profile_id, reply } => {
+                let result = self.db.list_schedules(profile_id).await.map_err(DaemonError::from);
+                let _ = reply.send(result);
+            }
+            Command::DeleteSchedule { id, reply } => {
+                let result = self.db.delete_schedule(id).await.map_err(DaemonError::from);
+                let _ = reply.send(result);
+                self.broadcast_policy_if_changed().await;
+            }
+
+            // ── Profile blocked websites ──────────────────────────────────
+
+            Command::AddProfileWebsite { profile_id, domain, reply } => {
+                let website = BlockedWebsite { id: 0, profile_id, domain };
+                let result = self.db.create_blocked_website(website).await.map_err(DaemonError::from);
+                let _ = reply.send(result);
+                self.broadcast_policy_if_changed().await;
+            }
+            Command::ListProfileWebsites { profile_id, reply } => {
+                let result = self.db.list_blocked_websites(profile_id).await.map_err(DaemonError::from);
+                let _ = reply.send(result);
+            }
+            Command::DeleteProfileWebsite { id, reply } => {
+                let result = self.db.delete_blocked_website(id).await.map_err(DaemonError::from);
+                let _ = reply.send(result);
+                self.broadcast_policy_if_changed().await;
+            }
+
+            // ── Profile blocked apps ──────────────────────────────────────
+
+            Command::AddProfileApp { profile_id, app_identifier, reply } => {
+                let app = BlockedApp { id: 0, profile_id, app_identifier };
+                let result = self.db.create_blocked_app(app).await.map_err(DaemonError::from);
+                let _ = reply.send(result);
+                self.broadcast_policy_if_changed().await;
+            }
+            Command::ListProfileApps { profile_id, reply } => {
+                let result = self.db.list_blocked_apps(profile_id).await.map_err(DaemonError::from);
+                let _ = reply.send(result);
+            }
+            Command::DeleteProfileApp { id, reply } => {
+                let result = self.db.delete_blocked_app(id).await.map_err(DaemonError::from);
+                let _ = reply.send(result);
+                self.broadcast_policy_if_changed().await;
+            }
+
+            // ── DOM rules ─────────────────────────────────────────────────
+
+            Command::AddDomRule { profile_id, site, toggle, reply } => {
+                let rule = DomRule { id: 0, profile_id, site, toggle };
+                let result = self.db.create_dom_rule(rule).await.map_err(DaemonError::from);
+                let _ = reply.send(result);
+                self.broadcast_policy_if_changed().await;
+            }
+            Command::ListDomRules { profile_id, reply } => {
+                let result = self.db.list_dom_rules(profile_id).await.map_err(DaemonError::from);
+                let _ = reply.send(result);
+            }
+            Command::DeleteDomRule { id, reply } => {
+                let result = self.db.delete_dom_rule(id).await.map_err(DaemonError::from);
+                let _ = reply.send(result);
+                self.broadcast_policy_if_changed().await;
+            }
+
+            // ── Active policy ─────────────────────────────────────────────
+
+            Command::GetActivePolicy { reply } => {
+                let result = self.get_current_policy().await;
+                let _ = reply.send(result);
+            }
+
+            Command::PolicyMaybeChanged => {
+                self.broadcast_policy_if_changed().await;
+            }
         }
         Ok(false)
     }
@@ -623,25 +776,42 @@ impl DaemonActor {
             self.last_policy_check = Some(check_key);
 
             if let Ok(new_policy) = self.get_current_policy().await {
-                // Check if blocked websites changed
-                if new_policy.blocked_websites != self.cached_policy.blocked_websites {
+                if new_policy != self.cached_policy {
                     eprintln!("Scheduled policy changed, updating blocks...");
 
                     // If session is active, update hosts file
                     if self.session.is_active() {
-                        self.cached_policy = new_policy;
                         if let Err(e) = self.add_blocks().await {
                             eprintln!("Failed to update blocks: {}", e);
                         }
-                    } else {
-                        self.cached_policy = new_policy;
                     }
+
+                    // Broadcast to all subscribers (native host, etc.)
+                    let _ = self.policy_tx.send(new_policy.clone());
+                    self.cached_policy = new_policy;
                 }
             }
         }
     }
 
     // ── Policy helpers ───────────────────────────────────────────────────────
+
+    /// Recompute the active policy and broadcast it to all subscribers if changed.
+    async fn broadcast_policy_if_changed(&mut self) {
+        if let Ok(new_policy) = self.get_current_policy().await {
+            if new_policy != self.cached_policy {
+                let n = self.policy_tx.receiver_count();
+                eprintln!(
+                    "Broadcasting policy change: {} sites, {} rules, {} receivers",
+                    new_policy.blocked_websites.len(),
+                    new_policy.dom_rules.len(),
+                    n
+                );
+                self.cached_policy = new_policy.clone();
+                let _ = self.policy_tx.send(new_policy);
+            }
+        }
+    }
 
     /// Get current policy by merging active scheduled profiles + global blocklist
     async fn get_current_policy(&self) -> Result<ActivePolicy, DaemonError> {
@@ -747,13 +917,64 @@ async fn handle_connection(
     mut conn: Connection,
     tx: mpsc::Sender<Command>,
     db: DbHandle,
+    mut policy_rx: broadcast::Receiver<ActivePolicy>,
 ) -> Result<(), DaemonError> {
-    while let Some(bytes) = conn.recv().await? {
-        let msg: ClientMessage = protocols::decode(&bytes)?;
-        let response = dispatch(msg, &tx, &db).await;
-        conn.send(&protocols::encode(&response)?).await?;
+    let mut subscribed = false;
+
+    loop {
+        tokio::select! {
+            recv_result = conn.recv() => {
+                match recv_result? {
+                    Some(bytes) => {
+                        let msg: ClientMessage = protocols::decode(&bytes)?;
+
+                        if matches!(msg, ClientMessage::SubscribePolicyChanges) {
+                            subscribed = true;
+                            let ack = DaemonMessage::Subscribed;
+                            conn.send(&protocols::encode(&ack)?).await?;
+                            continue;
+                        }
+
+                        let response = dispatch(msg, &tx, &db).await;
+                        conn.send(&protocols::encode(&response)?).await?;
+
+                        // If this was a mutation, tell the actor to recheck/broadcast
+                        if is_mutation(&response) {
+                            let _ = tx.send(Command::PolicyMaybeChanged).await;
+                        }
+                    }
+                    None => break, // Connection closed
+                }
+            }
+            Ok(policy) = policy_rx.recv(), if subscribed => {
+                let push = DaemonMessage::PolicyChanged(policy);
+                conn.send(&protocols::encode(&push)?).await?;
+            }
+        }
     }
+
     Ok(())
+}
+
+/// Returns true if the response indicates a mutation that could affect the active policy.
+fn is_mutation(response: &DaemonMessage) -> bool {
+    matches!(
+        response,
+        DaemonMessage::Profile(_)
+            | DaemonMessage::ProfileUpdated
+            | DaemonMessage::ProfileDeleted
+            | DaemonMessage::BlockedWebsite(_)
+            | DaemonMessage::BlockedWebsiteDeleted
+            | DaemonMessage::BlockedApp(_)
+            | DaemonMessage::BlockedAppDeleted
+            | DaemonMessage::DomRule(_)
+            | DaemonMessage::DomRuleDeleted
+            | DaemonMessage::GlobalWebsiteAdded(_)
+            | DaemonMessage::GlobalWebsiteRemoved(_)
+            | DaemonMessage::Schedule(_)
+            | DaemonMessage::ScheduleUpdated
+            | DaemonMessage::ScheduleDeleted
+    )
 }
 
 /// Dispatch a client message to the appropriate handler.
@@ -968,6 +1189,11 @@ async fn dispatch_inner(
             let policy = db.get_active_policy(current_day, current_time).await?;
             Ok(DaemonMessage::ActivePolicy(policy))
         }
+
+        // Subscription is handled at the connection level, not here
+        ClientMessage::SubscribePolicyChanges => {
+            Ok(DaemonMessage::Subscribed)
+        }
     }
 }
 
@@ -978,8 +1204,9 @@ async fn dispatch_inner(
 pub async fn run(config: Config) -> Result<DaemonHandle, DaemonError> {
     let (tx, rx) = mpsc::channel(32);
     let (session_tx, _) = broadcast::channel(16);
+    let (policy_tx, _) = broadcast::channel(16);
 
-    let actor = DaemonActor::new(rx, tx.clone(), session_tx.clone(), config).await?;
+    let actor = DaemonActor::new(rx, tx.clone(), session_tx.clone(), policy_tx, config).await?;
     let handle = DaemonHandle { tx, session_tx };
 
     tokio::spawn(async move {
@@ -1236,5 +1463,101 @@ mod tests {
         handle.shutdown(true).await.unwrap();
         tokio::time::sleep(Duration::from_millis(100)).await;
         assert!(!socket_path.exists());
+    }
+
+    #[tokio::test]
+    async fn policy_push_over_socket() {
+        use crate::client;
+        use crate::protocols;
+
+        let hosts = NamedTempFile::new().unwrap();
+        let socket_path = unique_path("sock");
+        let config = test_config(
+            hosts.path(),
+            &socket_path,
+            &unique_path("pid"),
+            &unique_path("db"),
+        );
+
+        let handle = run(config).await.unwrap();
+
+        // Connect subscriber
+        let mut sub_conn = client::connect(&socket_path, Duration::from_secs(5))
+            .await
+            .unwrap();
+
+        // Subscribe to policy changes
+        let resp = client::send_and_receive(&mut sub_conn, ClientMessage::SubscribePolicyChanges)
+            .await
+            .unwrap();
+        assert!(matches!(resp, DaemonMessage::Subscribed));
+
+        // Make a mutation via the DaemonHandle (triggers broadcast)
+        handle.add_website("reddit.com".into()).await.unwrap();
+
+        // The subscriber should receive a PolicyChanged push
+        let push_bytes = tokio::time::timeout(
+            Duration::from_secs(5),
+            sub_conn.recv(),
+        )
+        .await
+        .expect("Timed out waiting for policy push")
+        .unwrap()
+        .expect("Connection closed unexpectedly");
+
+        let push_msg: DaemonMessage = protocols::decode(&push_bytes).unwrap();
+        match push_msg {
+            DaemonMessage::PolicyChanged(policy) => {
+                assert!(
+                    policy.blocked_websites.contains(&"reddit.com".to_string()),
+                    "Expected reddit.com in pushed policy: {:?}",
+                    policy.blocked_websites
+                );
+            }
+            other => panic!("Expected PolicyChanged, got {:?}", other),
+        }
+
+        handle.shutdown(true).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn active_policy_includes_profile_dom_rules_and_websites() {
+        let (handle, _hosts) = start_test_daemon(&[]).await;
+
+        // Create a profile (enabled by default, no schedule = always active)
+        let profile = handle.create_profile("Test".into()).await.unwrap();
+        assert!(profile.enabled);
+
+        // Add a blocked website to the profile
+        let website = handle
+            .add_profile_website(profile.id.clone(), "reddit.com".into())
+            .await
+            .unwrap();
+        assert_eq!(website.domain, "reddit.com");
+
+        // Add a DOM rule to the profile
+        let rule = handle
+            .add_dom_rule(profile.id.clone(), "youtube".into(), "hideShorts".into())
+            .await
+            .unwrap();
+        assert_eq!(rule.site, "youtube");
+        assert_eq!(rule.toggle, "hideShorts");
+
+        // Query active policy — profile has no schedule so LEFT JOIN
+        // treats it as always active
+        let policy = handle.get_active_policy().await.unwrap();
+
+        assert!(
+            policy.blocked_websites.contains(&"reddit.com".to_string()),
+            "Expected reddit.com in blocked_websites: {:?}",
+            policy.blocked_websites
+        );
+        assert!(
+            policy.dom_rules.iter().any(|r| r.site == "youtube" && r.toggle == "hideShorts"),
+            "Expected youtube/hideShorts DOM rule: {:?}",
+            policy.dom_rules
+        );
+
+        handle.shutdown(true).await.unwrap();
     }
 }
