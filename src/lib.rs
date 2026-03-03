@@ -1,3 +1,5 @@
+// src/lib.rs
+
 pub mod client;
 #[cfg(feature = "gui")]
 pub mod commands;
@@ -12,3 +14,7 @@ pub mod protocols;
 pub mod session;
 pub mod signal;
 pub mod socket;
+
+// Tauri commands - only compiled with "gui" feature
+#[cfg(feature = "gui")]
+pub mod commands;

@@ -7,6 +7,13 @@
 //   Extension <-> Host: JSON with 4-byte little-endian length prefix (native messaging spec)
 //   Host <-> Daemon: MessagePack with 4-byte big-endian length prefix (LengthDelimitedCodec)
 
+use dark_pattern_blocker::config::config::Config;
+use dark_pattern_blocker::daemon;
+use dark_pattern_blocker::client;
+use dark_pattern_blocker::protocols::{ClientMessage, DaemonMessage};
+use std::time::Duration;
+use tempfile::tempdir;
+
 use std::io::{self, Read, Write};
 
 use anyhow::{Context, Result, bail};
@@ -15,7 +22,6 @@ use serde::{Deserialize, Serialize};
 use dark_pattern_blocker::db::{
     ActivePolicy, BlockedApp, BlockedWebsite, DomRule, ManualSession, Profile, Schedule,
 };
-use dark_pattern_blocker::protocols::{ClientMessage, DaemonMessage};
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
@@ -528,4 +534,85 @@ async fn main() {
 
         std::process::exit(1);
     }
+}
+
+#[tokio::test]
+async fn native_host_receives_correct_active_policy() {
+    // 1. Set up a daemon with a temp socket + temp DB
+    let dir = tempdir().unwrap();
+    let config = Config::from_toml(&format!(
+        r#"
+        hosts_file = "{}"
+        socket_path = "{}"
+        pid_path = "{}"
+        db_path = "{}"
+        "#,
+        dir.path().join("hosts").display(),
+        dir.path().join("test.sock").display(),
+        dir.path().join("test.pid").display(),
+        dir.path().join("test.db").display(),
+    )).unwrap();
+
+    let socket_path = dir.path().join("test.sock");
+    let handle = daemon::run(config).await.unwrap();
+
+    // 2. Connect as a client and set up test data
+    let mut conn = client::connect(&socket_path, Duration::from_secs(5))
+        .await.unwrap();
+
+    // Create a profile
+    let resp = client::send_and_receive(&mut conn, 
+        ClientMessage::CreateProfile { name: "Test".into() }
+    ).await.unwrap();
+    
+    let profile_id = match resp {
+        DaemonMessage::Profile(p) => p.id,
+        _ => panic!("Expected Profile"),
+    };
+
+    // Enable it (it's enabled by default, but be explicit)
+    client::send_and_receive(&mut conn,
+        ClientMessage::UpdateProfile {
+            profile: Profile { id: profile_id.clone(), name: "Test".into(), enabled: true },
+        }
+    ).await.unwrap();
+
+    // Add a DOM rule
+    client::send_and_receive(&mut conn,
+        ClientMessage::CreateDomRule {
+            rule: DomRule { id: 0, profile_id: profile_id.clone(), 
+                           site: "youtube".into(), toggle: "hideShorts".into() },
+        }
+    ).await.unwrap();
+
+    // Add a blocked website
+    client::send_and_receive(&mut conn,
+        ClientMessage::CreateBlockedWebsite {
+            website: BlockedWebsite { id: 0, profile_id: profile_id.clone(),
+                                      domain: "reddit.com".into() },
+        }
+    ).await.unwrap();
+
+    // 3. Query active policy (same as native-host does on startup)
+    let now = chrono::Local::now();
+    let resp = client::send_and_receive(&mut conn,
+        ClientMessage::GetActivePolicy {
+            current_day: now.format("%a").to_string().to_lowercase(),
+            current_time: now.format("%H:%M").to_string(),
+        }
+    ).await.unwrap();
+
+    // 4. Assert the policy contains our data
+    match resp {
+        DaemonMessage::ActivePolicy(policy) => {
+            assert!(policy.blocked_websites.contains(&"reddit.com".to_string()),
+                "Expected reddit.com in blocked_websites: {:?}", policy.blocked_websites);
+            assert!(policy.dom_rules.iter().any(|r| r.site == "youtube" && r.toggle == "hideShorts"),
+                "Expected youtube/hideShorts DOM rule: {:?}", policy.dom_rules);
+        }
+        other => panic!("Expected ActivePolicy, got {:?}", other),
+    }
+
+    // Cleanup
+    let _ = handle.shutdown(false).await;
 }

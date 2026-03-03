@@ -429,10 +429,22 @@ function renderBlockCards() {
     };
   });
   el.querySelectorAll('.toggle').forEach(tog => {
-    tog.onclick = e => {
+    tog.onclick = async e => {
       e.stopPropagation();
+      const id = tog.dataset.toggleId;
+      const p = profiles.find(x => x.id === id);
+      if (!p) return;
+      const newEnabled = !p.enabled;
       tog.classList.toggle('on');
-      tog.parentElement.querySelector('.toggle-label').textContent = tog.classList.contains('on') ? 'On' : 'Off';
+      tog.parentElement.querySelector('.toggle-label').textContent = newEnabled ? 'On' : 'Off';
+      try {
+        await invoke('update_profile', { id: p.id, name: p.name, enabled: newEnabled });
+        p.enabled = newEnabled;
+      } catch (err) {
+        tog.classList.toggle('on');
+        tog.parentElement.querySelector('.toggle-label').textContent = p.enabled ? 'On' : 'Off';
+        console.error('Failed to update profile:', err);
+      }
     };
   });
 }

@@ -18,6 +18,7 @@ fn main() {
             // Profiles
             commands::create_profile,
             commands::list_profiles,
+            commands::update_profile,
             commands::delete_profile,
             // Schedules
             commands::create_schedule,
